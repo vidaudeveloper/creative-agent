@@ -29,8 +29,8 @@ metadata:
 2. `creative_estimate` workflow_type=`direct_image`
 3. 告知用户：「正在生图，约 1–2 分钟…」
 4. **有用户本地/附件参考图时**（Hermes `@image` 等）：
-   - **优先** `creative_get_upload_instructions` → 本机 curl/terminal 上传 → 取 `data.fileUrl`
-   - 兜底（无本机 token）：`creative_upload_reference`（`content_base64`）
+   - **优先** `creative_get_upload_instructions` → 本机 curl/terminal PUT 上传到 S3 → 取 `upload.file_url`
+   - 兜底（无本机终端）：`creative_upload_reference`（`content_base64`）
 5. `creative_generate_image`:
    - `prompt`: 用户描述
    - `aspect_ratio`: `9:16` | `1:1` | `16:9`

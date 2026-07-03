@@ -127,8 +127,8 @@ skills/
 |------|------|
 | `platform_get_credits` | 查积分 |
 | `platform_check_entitlement` | 查权益 |
-| `creative_get_upload_instructions` | 参考素材本地上传 API 说明（不传图） |
-| `creative_upload_reference` | 【兜底】经 MCP 代传参考图 → CDN URL |
+| `creative_get_upload_instructions` | 参考素材本地上传 S3 预签名 PUT 说明（不传图） |
+| `creative_upload_reference` | 【兜底】经 MCP 代传参考图 → S3 URL |
 | `creative_estimate` | 估积分/耗时 |
 | `creative_generate_image` | 同步生图 |
 | `creative_generate_video` | 同步生视频 |

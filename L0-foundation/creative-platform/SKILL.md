@@ -22,17 +22,17 @@ metadata:
 
 生图/生视频 MCP 工具只接受 **HTTPS URL**（`reference_urls`），不传文件字节。
 
-**Hermes Desktop / 有 `VIDAU_TOKEN` 的环境：**
+**Hermes Desktop / 有本机终端的环境：**
 
-1. `creative_get_upload_instructions` — 获取上传 URL、Header、curl 示例
-2. 在**用户本机**用 `terminal` / curl POST multipart（字段名 `file`）
-3. 取响应 `data.fileUrl`
+1. `creative_get_upload_instructions` — 获取 S3 预签名 PUT 上传 URL 与 curl 示例
+2. 在**用户本机**用 `terminal` / curl PUT 文件（`Content-Type` 见返回说明）
+3. 上传成功后使用返回的 `upload.file_url`
 4. 填入 `creative_generate_image.reference_urls` 或 `creative_image_to_video.reference_image_urls`
 
-**不要**对远程 MCP 使用 `local_path`（会 ENOENT）。**不要**默认把大图 base64 经 MCP 代传；仅无本机 token 时用 `creative_upload_reference` 兜底。
+**不要**对远程 MCP 使用 `local_path`（会 ENOENT）。**不要**默认把大图 base64 经 MCP 代传；仅无本机终端时用 `creative_upload_reference` 兜底。
 
 ## 注意
 
-- 所有 MCP 请求需携带用户 `VidAu-Token`（MCP HTTP Header）；本地上传同样用 `VIDAU_TOKEN`
+- MCP 请求需携带用户 `VidAu-Token`（MCP HTTP Header）；S3 预签名上传无需 VidAU token
 - 单张参考图上限约 25 MB；支持 jpg/png/webp/gif/bmp
 - 失败生成按平台规则不重复扣费（以服务端为准）

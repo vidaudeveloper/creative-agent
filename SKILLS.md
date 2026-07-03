@@ -5,7 +5,7 @@
 
 ## 安装
 
-一键安装：复制 [docs/SKILLS_SETUP.md](./docs/SKILLS_SETUP.md) 中的话术到 Agent 对话。
+一键安装：复制 [docs/SETUP.md](./docs/SETUP.md) 中的话术到 Agent 对话（先 MCP，后 Skill）。
 
 ```bash
 # 或在本仓库根目录
@@ -14,8 +14,8 @@ pnpm skills:install
 
 ## 与 MCP 配合
 
-1. **MCP**（生图/生视频）：`mcp_servers.vidau-creative.url` → `https://creative.vidau.info/mcp`（见 [creative-agent MCP_SETUP.md](https://github.com/vidaudeveloper/creative-agent/blob/main/docs/MCP_SETUP.md)）
-2. **Skill**（工作流）：[SKILLS_SETUP.md](./docs/SKILLS_SETUP.md)
+1. **MCP**（生图/生视频）：`mcp_servers.vidau-creative.url` → `https://creative.vidau.info/mcp`
+2. **Skill**（工作流）：见 [SETUP.md](./docs/SETUP.md)
 
 ## 维护
 

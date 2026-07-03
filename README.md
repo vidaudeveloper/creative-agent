@@ -2,7 +2,7 @@
 
 VidAU Creative Agent 的 Skill 包，配合 [creative-agent](https://github.com/vidaudeveloper/creative-agent) MCP 服务使用。
 
-**一键安装全部 Skill**：复制 [docs/SKILLS_SETUP.md](./docs/SKILLS_SETUP.md) 中的话术到 Agent 对话即可。
+**一键安装（MCP + Skill）**：复制 [docs/SETUP.md](./docs/SETUP.md) 中的话术到 Agent 对话即可。
 
 ## Skill 分层
 
@@ -27,7 +27,7 @@ mcp_servers:
 
 ## 安装
 
-复制 [docs/SKILLS_SETUP.md](./docs/SKILLS_SETUP.md) 中的话术到 Agent 对话，或在本仓库执行：
+复制 [docs/SETUP.md](./docs/SETUP.md) 中的话术到 Agent 对话，或在本仓库执行：
 
 ```bash
 pnpm skills:install

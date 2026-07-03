@@ -1,0 +1,27 @@
+{
+  "name": "creative-agent-skill",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "VidAU Creative Agent — Hermes Skill 包（独立仓库）",
+  "scripts": {
+    "skills:validate": "node scripts/validate-skills.mjs",
+    "skills:build": "node scripts/build-well-known-skills.mjs",
+    "skills:install": "node scripts/install-hermes-skills.mjs --force"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vidaudeveloper/creative-agent-skill.git"
+  },
+  "keywords": [
+    "hermes",
+    "vidau",
+    "creative-agent",
+    "skill",
+    "mcp"
+  ],
+  "license": "MIT"
+}

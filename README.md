@@ -1,8 +1,8 @@
 # VidAU Creative Agent Skills
 
-Hermes 可安装的 **Skill 包**，配合 [creative-agent](https://github.com/vidaudeveloper/creative-agent) MCP 服务使用。
+VidAU Creative Agent 的 Hermes Skill 包，配合 [creative-agent](https://github.com/vidaudeveloper/creative-agent) MCP 服务使用。
 
-本仓库为 Skill 文档的**独立源**，便于用户单独安装、Fork 或托管到 CDN。
+本仓库为 **Skill 文档独立源**，供桌面端打包时拉取并内置到安装包。
 
 ## Skill 分层
 
@@ -12,15 +12,65 @@ Hermes 可安装的 **Skill 包**，配合 [creative-agent](https://github.com/v
 | **L1-capability** | 制作能力链路 | `creative-direct`、`creative-script2film`、`creative-script2film-keyframes`、`creative-batch-orchestrator` |
 | **L2-vertical** | 垂类场景 | `trend-viral-short`、`product-url-to-video` |
 
-完整清单见 [`_manifest.yaml`](./_manifest.yaml)。
+依赖关系见 [`_manifest.yaml`](./_manifest.yaml)。
 
 ---
 
-## 快速集成（Hermes 用户）
+## 桌面端接入（推荐）
 
-### 1. 注册 MCP（生图/生视频）
+最常见的做法：打包前从本仓库复制 Skill 文件，**展平**为 `{skill-name}/SKILL.md` 目录结构，打进应用资源目录。
 
-在 `~/.hermes/config.yaml`：
+### 1. 引用本仓库
+
+```bash
+# 方式 A：git submodule（推荐，版本可 pin）
+git submodule add https://github.com/vidaudeveloper/creative-agent-skill.git vendor/creative-agent-skill
+git submodule update --init --recursive
+
+# 方式 B：CI 临时 clone
+git clone --depth 1 https://github.com/vidaudeveloper/creative-agent-skill.git /tmp/creative-agent-skill
+```
+
+### 2. 打包脚本同步 Skill
+
+将 L0 / L1 / L2 三层展平复制到目标目录（示例输出 `resources/skills/`）：
+
+```bash
+SKILL_SRC="vendor/creative-agent-skill"   # 或 /tmp/creative-agent-skill
+SKILL_DEST="resources/skills"             # 改成你项目的内置路径
+
+rm -rf "$SKILL_DEST"
+mkdir -p "$SKILL_DEST"
+
+for layer in L0-foundation L1-capability L2-vertical; do
+  layer_dir="$SKILL_SRC/$layer"
+  [[ -d "$layer_dir" ]] || continue
+  for skill_dir in "$layer_dir"/*/; do
+    [[ -f "${skill_dir}SKILL.md" ]] || continue
+    cp -R "$skill_dir" "$SKILL_DEST/$(basename "$skill_dir")"
+  done
+done
+
+echo "已同步 $(find "$SKILL_DEST" -name SKILL.md | wc -l | tr -d ' ') 个 Skill"
+```
+
+同步后的目录结构：
+
+```
+resources/skills/
+├── creative-platform/SKILL.md
+├── creative-job-runner/SKILL.md
+├── creative-direct/SKILL.md
+├── creative-script2film/SKILL.md
+├── creative-script2film-keyframes/SKILL.md
+├── creative-batch-orchestrator/SKILL.md
+├── trend-viral-short/SKILL.md
+└── product-url-to-video/SKILL.md
+```
+
+### 3. 配置 MCP
+
+桌面端 Agent 还需连接 creative-agent MCP（生图 / 生视频 / 异步任务）：
 
 ```yaml
 mcp_servers:
@@ -30,140 +80,43 @@ mcp_servers:
       Authorization: Bearer ${VIDAU_TOKEN}
 ```
 
-登录 VidAU：`hermes vidau login`
+Skill 告诉 Agent **怎么用** MCP 工具；MCP 负责 **实际调用**。
 
-### 2. 远程安装 Skill（推荐）
+---
 
-**已发布测试服**：`https://creative.vidau.info`
+## 其他接入方式
+
+### 静态 well-known 托管
+
+适合 CDN / GitHub Pages，不跑 Node 服务：
 
 ```bash
-BASE=https://creative.vidau.info
+pnpm skills:validate
+pnpm skills:build
+# 输出 → public/.well-known/skills/
+```
 
-# 浏览可用 Skill
-hermes skills search "$BASE" --source well-known
+客户端按 `/.well-known/skills/index.json` 发现并拉取各 Skill。
 
-# 预览单个 Skill
-hermes skills inspect "well-known:${BASE}/.well-known/skills/creative-direct"
+### Hermes CLI 远程安装
 
-# 安装单个
-hermes skills install "well-known:${BASE}/.well-known/skills/creative-direct" --force
+已有 Hermes 环境的开发者，可在线安装：
 
-# 一次安装全部（本仓库根目录）
+```bash
 git clone https://github.com/vidaudeveloper/creative-agent-skill.git
 cd creative-agent-skill
 pnpm skills:install
 ```
 
-### 3. 本地软链（开发 / 自定义）
-
-```bash
-git clone https://github.com/vidaudeveloper/creative-agent-skill.git
-ln -sf "$(pwd)/creative-agent-skill/L0-foundation/creative-platform" \
-  ~/.hermes/skills/vidau-creative/creative-platform
-# 其他 skill 同理，或复制整个 L0/L1/L2 目录
-```
-
----
-
-## 与本仓库配合的 creative-agent
-
-[creative-agent](https://github.com/vidaudeveloper/creative-agent) 运行时通过 `SKILLS_DIR` 读取本仓库内容，并暴露 Hermes 标准端点：
-
-| URL | 说明 |
-|-----|------|
-| `GET /.well-known/skills/index.json` | Skill 目录索引 |
-| `GET /.well-known/skills/{name}/SKILL.md` | 单个 Skill 正文 |
-
-在 creative-agent 中以 **git submodule** 引用本仓库：
-
-```bash
-cd creative-agent
-git submodule add https://github.com/vidaudeveloper/creative-agent-skill.git skills
-# .env.local: SKILLS_DIR=./skills
-```
-
----
-
-## 静态托管（CDN / GitHub Pages）
-
-不跑 Node 服务也可托管 Skill：
-
-```bash
-pnpm skills:validate   # 校验 frontmatter
-pnpm skills:build      # 生成 public/.well-known/skills/
-```
-
-将 `public/` 挂到 CDN 或 nginx，然后用：
-
-```bash
-hermes skills install "well-known:https://your-cdn.example.com/.well-known/skills/creative-direct" --force
-```
-
----
-
-## 目录结构
-
-```
-creative-agent-skill/
-├── _manifest.yaml          # 包元数据 + 依赖关系
-├── L0-foundation/
-│   ├── creative-job-runner/
-│   └── creative-platform/
-├── L1-capability/
-│   ├── creative-batch-orchestrator/
-│   ├── creative-direct/
-│   ├── creative-script2film/
-│   └── creative-script2film-keyframes/
-├── L2-vertical/
-│   ├── product-url-to-video/
-│   └── trend-viral-short/
-├── scripts/
-│   ├── validate-skills.mjs
-│   ├── build-well-known-skills.mjs
-│   └── install-hermes-skills.mjs
-└── SKILLS.md               # 详细安装与 MCP 对照说明
-```
-
----
-
-## MCP Tools 对照
-
-| Tool | 说明 |
-|------|------|
-| `platform_get_credits` | 查积分 |
-| `platform_check_entitlement` | 查权益 |
-| `creative_get_upload_instructions` | 参考素材本地上传 API 说明 |
-| `creative_upload_reference` | 【兜底】经 MCP 代传参考图 |
-| `creative_estimate` | 估积分/耗时 |
-| `creative_generate_image` | 同步生图 |
-| `creative_generate_video` | 同步生视频 |
-| `creative_image_to_video` | 参考图生视频 |
-| `creative_first_frame_to_video` | 首帧/首尾帧生视频 |
-| `creative_submit_workflow` | 通用异步提交 |
-| `creative_generate_script` | 生成 Final Video Spec 脚本 |
-| `creative_submit_script2film` | 脚本→成片（reference） |
-| `creative_submit_script2film_keyframes` | 脚本→成片（首尾帧） |
-| `creative_submit_batch_variants` | 批量变体 |
-| `creative_get_job` | 查任务 |
-| `creative_list_jobs` | 列出我的任务 |
-| `creative_cancel_job` | 取消任务 |
-| `creative_list_models` | 模型列表 |
-
-更多细节见 [SKILLS.md](./SKILLS.md)。
+默认从 `https://creative.vidau.info` 拉取全部 Skill 到 `~/.hermes/skills/`。
 
 ---
 
 ## 维护
 
 ```bash
-pnpm skills:validate
-pnpm skills:build
-SKILLS_BASE_URL=http://localhost:3100 pnpm skills:install   # 联调 creative-agent 本地实例
+pnpm skills:validate   # 校验 SKILL.md frontmatter
+pnpm skills:build      # 生成 well-known 静态目录
 ```
 
-本地联调时 Hermes 默认阻止 `localhost`（SSRF 防护），需在 `~/.hermes/config.yaml` 临时设置：
-
-```yaml
-security:
-  allow_private_urls: true
-```
+更详细的 MCP 工具对照与安装说明见 [SKILLS.md](./SKILLS.md)。

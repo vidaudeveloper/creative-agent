@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** 静态导出 Hermes well-known Skill 目录（CDN / GitHub Pages / nginx） */
+/** 静态导出 well-known Skill 目录（CDN / GitHub Pages / nginx） */
 import { cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,13 +56,13 @@ async function readManifest() {
     return {
       package: pick("package") ?? "vidau-creative-skills",
       version: pick("version") ?? "0.1.0",
-      description: pick("description") ?? "VidAU Creative Agent — Hermes Skill 包",
+      description: pick("description") ?? "VidAU Creative Agent Skill 包",
     };
   } catch {
     return {
       package: "vidau-creative-skills",
       version: "0.1.0",
-      description: "VidAU Creative Agent — Hermes Skill 包",
+      description: "VidAU Creative Agent Skill 包",
     };
   }
 }

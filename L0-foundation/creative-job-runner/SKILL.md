@@ -5,8 +5,6 @@ metadata:
   layer: L0-foundation
   requires: []
   tags: [foundation, async, tracking]
-  hermes:
-    category: vidau-creative
 ---
 
 # Creative Job Runner — 提交即返回 + 对话追踪
@@ -43,9 +41,9 @@ metadata:
 调用 **之前** 先告诉用户：「正在生成，约需 1–3 分钟，请稍候。」  
 工具返回后，将 `tracking.user_message` 与 artifacts URL 一并交付。
 
-## Hermes 行为要点
+## Agent 行为要点
 
-- 按 `tracking.hermes_action` 字面执行；其中若含「禁止轮询」，不得忽略。
+- 按 `tracking.agent_action` 字面执行；其中若含「禁止轮询」，不得忽略。
 - **不要**向用户发送任何任务页链接；进度统一在本对话中查询。
 - 用户说「我的任务」→ `creative_list_jobs`，并在对话中展示列表。
 

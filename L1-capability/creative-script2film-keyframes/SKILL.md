@@ -24,7 +24,7 @@ metadata:
 
 与 **creative-script2film** 共用同一服务端 pipeline，**仅 `video_mode` 不同**（本 Skill 默认 `first_last_frame`）。
 
-1. `platform_get_credits` + `creative_estimate` workflow_type=`script2film`
+1. `creative_estimate` workflow_type=`script2film`
 2. **`creative_submit_script2film_keyframes`**（默认 `video_mode=first_last_frame`）:
 
 ```json

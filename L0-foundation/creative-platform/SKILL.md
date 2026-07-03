@@ -1,28 +1,26 @@
 ---
 name: creative-platform
-description: VidAU 平台积分、会员权益与参考素材本地上传
+description: VidAU Creative 参考素材上传与生成前置说明
 metadata:
   layer: L0-foundation
   requires: []
-  tags: [foundation, billing, platform, upload]
+  tags: [foundation, platform, upload]
 ---
 
 # Creative Platform Gateway
 
-在执行任何扣费生成前，先确认用户积分与权益。
+当前测试环境**无需积分/权益校验**，可直接调用生成类 MCP 工具。
 
 ## 流程
 
-1. `platform_check_entitlement` — 确认可使用 Creative Agent
-2. `platform_get_credits` — 获取当前 `coin` 余额
-3. 调用 `creative_estimate` 对比所需积分
-4. 不足时明确告知差额，引导充值（VidAU VIP）
+1. 调用 `creative_estimate` 了解预估耗时（可选）
+2. 直接调用 `creative_generate_*` / `creative_submit_*` 等工具
 
 ## 参考图本地上传（推荐）
 
 生图/生视频 MCP 工具只接受 **HTTPS URL**（`reference_urls`），不传文件字节。
 
-**Hermes Desktop / 有本机终端的环境：**
+**有本机终端的环境：**
 
 1. `creative_get_upload_instructions` — 获取 S3 预签名 PUT 上传 URL 与 curl 示例
 2. 在**用户本机**用 `terminal` / curl PUT 文件（`Content-Type` 见返回说明）
@@ -33,6 +31,4 @@ metadata:
 
 ## 注意
 
-- MCP 请求需携带用户 `VidAu-Token`（MCP HTTP Header）；S3 预签名上传无需 VidAU token
 - 单张参考图上限约 25 MB；支持 jpg/png/webp/gif/bmp
-- 失败生成按平台规则不重复扣费（以服务端为准）

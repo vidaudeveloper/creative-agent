@@ -1,6 +1,6 @@
 version: "0.1.0"
 package: vidau-creative-skills
-description: VidAU Creative Agent — Hermes Skill 包
+description: VidAU Creative Agent Skill 包
 
 layers:
   L0-foundation:
@@ -27,9 +27,9 @@ skills:
     layer: L0-foundation
     path: L0-foundation/creative-platform
     title: VidAU 平台网关
-    tags: [foundation, billing]
+    tags: [foundation, platform, upload]
     requires: []
-    mcp_tools: [platform_get_credits, platform_check_entitlement]
+    mcp_tools: []
 
   - id: creative-direct
     layer: L1-capability
@@ -86,7 +86,6 @@ skills:
         creative-script2film-keyframes,
       ]
     mcp_tools:
-      - platform_get_credits
       - creative_estimate
       - creative_submit_script2film
       - creative_submit_script2film_keyframes

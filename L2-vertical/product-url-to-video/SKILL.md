@@ -9,7 +9,7 @@ metadata:
 
 # 商品链接 → 视频（Product URL to Video）
 
-用户粘贴**商品页链接**时启用。先用 Hermes 内置网页能力抓取产品信息，再调用 **vidau-creative** MCP 生成广告素材。
+用户粘贴**商品页链接**时启用。先用 Agent 内置网页能力抓取产品信息，再调用 **vidau-creative** MCP 生成广告素材。
 
 > **适用**：Shopify 独立站、Amazon、TikTok Shop、Temu 等任意可访问的商品页。  
 > **不适用**：纯社媒主页、网盘、YouTube/Bilibili 视频链接 — 按普通对话处理。
@@ -37,7 +37,7 @@ metadata:
 ## 流程概览
 
 ```
-1. 抓取产品信息（Hermes 工具）
+1. 抓取产品信息（Agent 本地工具）
 2. 向用户展示摘要并确认
 3. 估积分 + 提交生成（MCP）
 4. creative-job-runner — 提交后立即发送 `tracking.user_message`，**禁止** sleep / 轮询
@@ -149,8 +149,7 @@ curl -sL -A "Mozilla/5.0" "<URL>" | head -c 200000
 
 ### 前置（必做）
 
-1. `platform_check_entitlement`
-2. `platform_get_credits`
+1. `creative_estimate` 了解预估
 3. `creative_estimate` — 按选定 workflow 估积分
 
 ### 默认：script2film 成片（reference）
@@ -225,4 +224,4 @@ creative_submit_batch_variants:
 - **合规**：遵守目标站 robots.txt；抓取失败不反复 brute-force。
 - **主流平台**：Amazon/TikTok Shop 等若页面复杂，优先 `web_extract` 或 `browser`。
 - **多链接**：一次最多处理 **3 个**商品链接；多产品时分别抓取、分别确认。
-- **不要**在抓取阶段调用 vidau-creative MCP；抓取纯靠 Hermes 本地工具，生成才走 MCP。
+- **不要**在抓取阶段调用 vidau-creative MCP；抓取纯靠 Agent 本地工具，生成才走 MCP。

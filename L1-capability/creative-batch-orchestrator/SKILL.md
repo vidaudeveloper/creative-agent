@@ -11,7 +11,7 @@ metadata:
 
 将**多条独立生成任务**组成一个批次，**允许混用不同 Skill**（script2film、首尾帧、直出视频、批量图变体等），并行提交后统一追踪与交付。
 
-> **依赖**：必须先加载 **creative-job-runner**（多 job UI 追踪）与 **creative-platform**（积分/权益）。  
+> **依赖**：必须先加载 **creative-job-runner**（多 job UI 追踪）与 **creative-platform**（上传与前置说明）。  
 > **典型规模**：**10 条/批**（硬上限 10；超出则拆成多批）。  
 > **任务可见性**：批次内**全部走异步 job**（含直出图/视频），均出现在 `creative_list_jobs` / Dashboard；**禁止**在批次内调用同步 MCP（`creative_generate_*` / `creative_image_to_video` 等）。
 
@@ -176,7 +176,7 @@ items:
 
 ### 2. 估积分
 
-1. `platform_get_credits`
+1. `creative_estimate` 了解批量任务预估
 2. 对**每条**调用 `creative_estimate`（`workflow_type` 与 input 对齐）：
 
 | skill | estimate workflow_type | params 示例 |

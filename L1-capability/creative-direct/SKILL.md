@@ -25,23 +25,20 @@ metadata:
 
 ## 生图
 
-1. `platform_get_credits`
-2. `creative_estimate` workflow_type=`direct_image`
-3. 告知用户：「正在生图，约 1–2 分钟…」
-4. **有用户本地/附件参考图时**（Hermes `@image` 等）：
+1. 告知用户：「正在生图，约 1–2 分钟…」
+2. **有用户本地/附件参考图时**（`@image` 等）：
    - **优先** `creative_get_upload_instructions` → 本机 curl/terminal PUT 上传到 S3 → 取 `upload.file_url`
    - 兜底（无本机终端）：`creative_upload_reference`（`content_base64`）
-5. `creative_generate_image`:
+3. `creative_generate_image`:
    - `prompt`: 用户描述
    - `aspect_ratio`: `9:16` | `1:1` | `16:9`
    - `reference_urls`: 可选，填入上一步 `file_url`（或已有 HTTPS 外链）
-6. 读取 `tracking.user_message`，返回 `artifacts[0].urls.download` 与 `local` 落盘提示
+4. 读取 `tracking.user_message`，返回 `artifacts[0].urls.download` 与 `local` 落盘提示
 
 ## 生视频
 
-1. 同上估积分
-2. 告知用户：「正在生视频，约 2–5 分钟…」
-3. 有用户参考图时用 **`creative_image_to_video`**（Seedance **参考生视频**，`reference_image` 角色，**非首尾帧**）：
+1. 告知用户：「正在生视频，约 2–5 分钟…」
+2. 有用户参考图时用 **`creative_image_to_video`**（Seedance **参考生视频**，`reference_image` 角色，**非首尾帧**）：
    - `reference_image_urls`: 产品 / 人物 / 场景 / 风格等（最多 9 张）
    - 或单张 `reference_image_url`
 4. 无参考图时用 `creative_generate_video`（纯文生视频）

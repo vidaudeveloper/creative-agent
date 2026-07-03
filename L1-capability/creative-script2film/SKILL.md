@@ -60,7 +60,7 @@ metadata:
 
 ### 2. 估积分 + 提交
 
-1. `platform_get_credits` + `creative_estimate` workflow_type=`script2film`, params=`{ target_duration_sec: 30 }`
+1. `creative_estimate` workflow_type=`script2film`
 2. `creative_submit_script2film`:
    ```json
    {

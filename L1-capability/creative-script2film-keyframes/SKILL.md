@@ -1,111 +1,113 @@
 ---
 name: creative-script2film-keyframes
-description: 脚本→成片（首尾帧/首帧生视频）— 逐镜关键帧驱动 Seedance 过渡动画
+description: Script-to-video (first/last frame) — per-shot keyframes drive Seedance transition animation
 metadata:
   layer: L1-capability
-  requires: [creative-job-runner, creative-platform]
+  requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt, creative-script2film]
   tags: [storyboard, async, script2film, keyframes, first-frame, one-click]
 ---
 
-# Creative Script2Film — 首尾帧生视频
+# Creative Script2Film — First/last-frame video
 
-与 **creative-script2film**（参考图生视频）共用同一 script2film 工作流，但逐镜生视频使用 **首帧 / 首尾帧** 模式，而非 reference 参考图。
+Shares the same script2film workflow as **creative-script2film** (reference-image-to-video), but per-shot video uses **first-frame / first-last-frame** mode instead of reference mode.
 
-## 何时选用
+> **Prompt gate**: Same as **creative-script2film** — load **creative-seedance2-prompt** to enrich Final Video Spec shot visuals and motion-between-frames language before submit.
 
-| 场景 | 推荐 Skill |
-|------|------------|
-| 产品/人物需与参考图高度一致、多 reference 约束 | **creative-script2film**（reference） |
-| 镜头间需平滑过渡、运动轨迹可控 | **本 Skill**（first_last_frame） |
-| 单镜从静态关键帧展开动作、无需尾帧 | 本 Skill + `video_mode: first_frame` |
-| 单段短视频（非多镜成片） | **creative-direct** + `creative_first_frame_to_video` |
+## When to use
 
-## 流程（与 reference 版共用 script2film 工作流）
+| Scenario | Recommended skill |
+|----------|-------------------|
+| Product/person must match reference images closely; multi-reference constraints | **creative-script2film** (reference) |
+| Smooth inter-shot transitions; controllable motion | **This skill** (first_last_frame) |
+| Single shot expands action from a static keyframe; no end frame needed | This skill + `video_mode: first_frame` |
+| Single short clip (not multi-shot deliverable) | **creative-direct** + `creative_first_frame_to_video` |
 
-与 **creative-script2film** 共用同一服务端 pipeline，**仅 `video_mode` 不同**（本 Skill 默认 `first_last_frame`）。
+## Flow (shared script2film workflow with reference version)
 
-1. `creative_estimate` workflow_type=`script2film`
-2. **`creative_submit_script2film_keyframes`**（默认 `video_mode=first_last_frame`）:
+Same server pipeline as **creative-script2film** — **only `video_mode` differs** (this skill defaults to `first_last_frame`).
+
+1. `creative_estimate` with `workflow_type=script2film`
+2. **`creative_submit_script2film_keyframes`** (default `video_mode=first_last_frame`):
 
 ```json
 {
-  "script": "<用户脚本>",
+  "script": "<user script>",
   "target_duration_sec": 30,
   "aspect_ratio": "9:16",
-  "reference_image_urls": ["<产品主图>"],
+  "reference_image_urls": ["<product hero image>"],
   "brief": { "product": "..." },
   "client_request_id": "<uuid>"
 }
 ```
 
-3. **creative-job-runner** — 提交后立即发送 `tracking.user_message`，**禁止** sleep / 轮询；**artifacts[0]** 为成片（含 BGM，除非 `skip_bgm: true`）
+3. **creative-job-runner** — send `tracking.user_message` immediately after submit; **do not** sleep/poll; **artifacts[0]** is final video (with BGM unless `skip_bgm: true`)
 
-### 服务端执行顺序（与 reference 版一致）
+### Server execution order (same as reference version)
 
-1. **提取关键元素** — character / scene / prop / style / brand，绑定用户参考图
-2. **规划分镜** — 镜数、每镜 `duration_sec`（总和 = 目标时长）、`key_element_ids`
-3. **生成元素参考图** — Identity Board 设定板（全片视觉锚点）
-4. **并行生图** — 逐镜关键帧；prompt 织入元素描述 + 图N，refs = 该镜关联元素图
-5. **并行生视频** — Seedance **first_last_frame**（见下节）
-6. FFmpeg 拼接 + BGM
+1. **Extract key elements** — character / scene / prop / style / brand; bind user reference images
+2. **Plan shots** — shot count, per-shot `duration_sec` (sum = target duration), `key_element_ids`
+3. **Generate element reference images** — Identity Board (global visual anchors)
+4. **Parallel keyframe gen** — per-shot keyframes; prompt weaves element descriptions + image refs
+5. **Parallel video gen** — Seedance **first_last_frame** (see below)
+6. FFmpeg concat + BGM
 
-## 首尾帧原理（与 reference 版的唯一差异）
+## First/last-frame principle (only difference from reference version)
 
-| 阶段 | reference 版 | 首尾帧版（本 Skill） |
-|------|-------------|---------------------|
-| 关键元素 + 元素参考图 | ✅ 相同 | ✅ 相同 |
-| 逐镜生图 | 元素锚点 + 织入 prompt | ✅ 相同 |
-| 逐镜生视频 | Seedance **reference**（元素图 + 关键帧） | Seedance **first_last_frame**（仅首/尾关键帧） |
-| motion prompt | 织入元素描述 | ✅ 相同（帮助动作与主体一致） |
+| Stage | Reference version | First/last-frame (this skill) |
+|-------|-------------------|-------------------------------|
+| Key elements + element refs | ✅ Same | ✅ Same |
+| Per-shot keyframes | Element anchors + woven prompt | ✅ Same |
+| Per-shot video | Seedance **reference** (element imgs + keyframe) | Seedance **first_last_frame** (first/last keyframes only) |
+| Motion prompt | Woven element descriptions | ✅ Same (keeps subject consistent) |
 
-每镜生视频：
+Per-shot video:
 
-- **首帧** = 本镜关键帧（已由元素锚点约束）
-- **尾帧** = 下一镜关键帧（最后一镜尾帧 = 本镜关键帧）
+- **First frame** = this shot's keyframe (already constrained by element anchors)
+- **Last frame** = next shot's keyframe (last shot: last frame = this shot's keyframe)
 
-> 元素参考图**不传入** Seedance 生视频（首尾帧模式只用关键帧图片），一致性主要靠 **步骤 3–4** 锁定的关键帧外观；镜头间过渡更顺。
+> Element reference images are **not** passed into Seedance video gen (first/last-frame mode uses keyframe images only). Consistency relies on **steps 3–4** locked keyframe appearance; inter-shot transitions are smoother.
 
-## 关键元素与用户参考图
+## Key elements & user reference images
 
-与 **creative-script2film** 相同：用户参考图在**提取关键元素**阶段语义绑定，再生成元素 Identity Board，逐镜生图时按 `key_element_ids` 传入对应元素参考图。
+Same as **creative-script2film**: user refs bind semantically during **extract key elements**, then Identity Boards are generated; per-shot keyframe gen passes element refs via `key_element_ids`.
 
-| 阶段 | 首尾帧版行为 |
-|------|-------------|
-| 提取 / 规划 / 元素参考图 | 与 reference 版相同 |
-| 逐镜生图 | 元素锚点 + 织入 prompt |
-| 逐镜生视频 | 仅用本镜/下一镜**关键帧**，不用 reference 元素图 |
+| Stage | First/last-frame behavior |
+|-------|---------------------------|
+| Extract / plan / element refs | Same as reference version |
+| Per-shot keyframes | Element anchors + woven prompt |
+| Per-shot video | Uses this/next shot **keyframes only** — no reference element images |
 
-## 时长规划
+## Duration planning
 
-与 reference 版相同：`target_duration_sec` 在规划期分配各镜 duration，**总和必须等于目标**（±3s）。
+Same as reference version: `target_duration_sec` assigns per-shot durations at planning time; **sum must equal target** (±3s).
 
-## video_mode 参数
+## video_mode parameter
 
-| 值 | 说明 |
-|----|------|
-| `first_last_frame` | **默认** — 首帧 + 尾帧，镜头过渡更顺 |
-| `first_frame` | 仅首帧，适合单镜内动作展开 |
+| Value | Meaning |
+|-------|---------|
+| `first_last_frame` | **Default** — first + last frame; smoother shot transitions |
+| `first_frame` | First frame only; good for in-shot action expansion |
 
-也可走通用入口 `creative_submit_script2film` 并显式传 `video_mode`。
+You may also use `creative_submit_script2film` with explicit `video_mode`.
 
-## 同步单段（非成片）
+## Sync single segment (not full deliverable)
 
-已有首尾帧图片、只需一段视频时：
+When you already have first/last frame images and only need one clip:
 
 ```
 creative_first_frame_to_video:
   prompt: "..."
-  first_frame_url: "<首帧 URL>"
-  last_frame_url: "<尾帧 URL>"   # 可选；省略则 first_frame 模式
+  first_frame_url: "<first frame URL>"
+  last_frame_url: "<last frame URL>"   # optional; omit for first_frame mode
   duration_sec: 5
   aspect_ratio: "9:16"
 ```
 
-## 依赖
+## Dependencies
 
-- 服务端 ffmpeg（或 `FFMPEG_BIN`）
-- `RUNWARE_API_KEY`（BGM，可选）
+- Server ffmpeg (or `FFMPEG_BIN`)
+- `RUNWARE_API_KEY` (BGM, optional)
 
-## 分镜失败与重试
+## Shot failure & retry
 
-与 **creative-script2film** 相同：若某镜因 Seedance **版权/IP** 或 **真人脸隐私** 拦截失败，请引导用户**修改该镜 prompt / 更换参考图**后，用**新 `client_request_id`** 重提任务。详见 reference 版 Skill 的「分镜失败与重试」章节。
+Same as **creative-script2film**: if a shot fails due to Seedance **copyright/IP** or **real-face privacy** blocks, guide the user to **revise that shot's prompt / swap reference images**, then re-submit with a **new `client_request_id`**. See the reference skill's "Shot failure & retry" section.

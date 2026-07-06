@@ -1,46 +1,47 @@
 # VidAU Creative Agent Skills
 
-> **独立仓库**：[creative-agent-skill](https://github.com/vidaudeveloper/creative-agent-skill)  
-> MCP 服务：[creative-agent](https://github.com/vidaudeveloper/creative-agent)
+> **Repo**: [creative-agent-skill](https://github.com/vidaudeveloper/creative-agent-skill)  
+> **MCP server**: [creative-agent](https://github.com/vidaudeveloper/creative-agent)
 
-## 安装
+## Install
 
-一键安装：复制 [docs/SETUP.md](./docs/SETUP.md) 中的话术到 Agent 对话（先 MCP，后 Skill）。
+One-click: copy [docs/SETUP.md](./docs/SETUP.md) into Agent chat (MCP first, then Skills).
 
 ```bash
-# 或在本仓库根目录
+# or from repo root
 pnpm skills:install
 ```
 
-## 与 MCP 配合
+## Working with MCP
 
-1. **MCP**（生图/生视频）：`mcp_servers.vidau-creative.url` → `https://creative.vidau.info/mcp`
-2. **Skill**（工作流）：见 [SETUP.md](./docs/SETUP.md)
+1. **MCP** (image/video generation): `mcp_servers.vidau-creative.url` → `https://creative.vidau.info/mcp`
+2. **Prompt skills** (required before generation MCP): `creative-seedance2-prompt` (video), `creative-gpt-image2-prompt` (image)
+3. **Skills** (workflows): see [SETUP.md](./docs/SETUP.md)
 
-## 维护
+## Maintenance
 
 ```bash
 pnpm skills:validate
 pnpm skills:build
 ```
 
-## MCP Tools 对照
+## MCP tools reference
 
-| Tool | 说明 |
-|------|------|
-| `creative_get_upload_instructions` | 参考素材本地上传 S3 预签名 PUT 说明 |
-| `creative_upload_reference` | 【兜底】经 MCP 代传参考图 → S3 URL |
-| `creative_estimate` | 估积分/耗时 |
-| `creative_generate_image` | 同步生图 |
-| `creative_generate_video` | 同步生视频 |
-| `creative_image_to_video` | 参考图生视频 |
-| `creative_first_frame_to_video` | 首帧/首尾帧生视频 |
-| `creative_submit_workflow` | 通用异步提交 |
-| `creative_generate_script` | 从创意/brief 生成 Final Video Spec Markdown 脚本 |
-| `creative_submit_script2film` | 脚本→成片（reference） |
-| `creative_submit_script2film_keyframes` | 脚本→成片（首尾帧） |
-| `creative_submit_batch_variants` | 批量变体 |
-| `creative_get_job` | 查任务 |
-| `creative_list_jobs` | 列出任务 |
-| `creative_cancel_job` | 取消任务 |
-| `creative_list_models` | 模型列表 |
+| Tool | Description |
+|------|-------------|
+| `creative_get_upload_instructions` | S3 presigned PUT instructions for local reference upload |
+| `creative_upload_reference` | Fallback — upload reference image via MCP → S3 URL |
+| `creative_estimate` | Estimate credits / duration |
+| `creative_generate_image` | Sync image generation |
+| `creative_generate_video` | Sync video generation |
+| `creative_image_to_video` | Reference image to video |
+| `creative_first_frame_to_video` | First-frame / first-last-frame to video |
+| `creative_submit_workflow` | Generic async workflow submit |
+| `creative_generate_script` | Generate Final Video Spec Markdown from brief |
+| `creative_submit_script2film` | Script → video (reference mode) |
+| `creative_submit_script2film_keyframes` | Script → video (first/last frame) |
+| `creative_submit_batch_variants` | Batch image variants |
+| `creative_get_job` | Get job status |
+| `creative_list_jobs` | List jobs |
+| `creative_cancel_job` | Cancel job |
+| `creative_list_models` | List models |

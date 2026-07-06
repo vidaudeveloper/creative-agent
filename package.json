@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": false,
   "type": "module",
-  "description": "VidAU Creative Agent Skill 包（独立仓库）",
+  "description": "VidAU Creative Agent Skill package (standalone repo)",
   "scripts": {
     "skills:validate": "node scripts/validate-skills.mjs",
     "skills:build": "node scripts/build-well-known-skills.mjs",

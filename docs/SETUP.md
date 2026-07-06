@@ -13,6 +13,6 @@ auxiliary:
     model: gemini-3.1-flash-image-preview
 ```
 
-3. **Skills**: Install **all** Skills from the GitHub repository (**no local clone required** — fetch directly from GitHub). Skill repository: `https://github.com/vidaudeveloper/creative-agent-skill` (branch `main`). Read `https://raw.githubusercontent.com/vidaudeveloper/creative-agent/main/_manifest.yaml`, list every skill from `skills[].path` (in order: L0-foundation → L1-capability → L2-vertical), and for each path run `skills install https://raw.githubusercontent.com/vidaudeveloper/creative-agent/main/<path>/SKILL.md --force --yes --category vidau-creative`. After installation, verify that the installed list matches the manifest.
+3. **Skills**: Install **all** Skills from the GitHub repository (**no local clone required** — fetch directly from GitHub). Skill repository: `https://github.com/vidaudeveloper/creative-agent-skill` (branch `main`). Read `https://raw.githubusercontent.com/vidaudeveloper/creative-agent-skill/main/_manifest.yaml`, list every skill from `skills[].path` (in order: L0-foundation → L1-capability → L2-vertical, including **creative-seedance2-prompt** and **creative-gpt-image2-prompt**), and for each path run `skills install https://raw.githubusercontent.com/vidaudeveloper/creative-agent-skill/main/<path>/SKILL.md --force --yes --category vidau-creative`. After installation, verify that the installed list matches the manifest.
 
 4. **Apply changes**: Run `/reset` (or `/new`) to restart the session so MCP, Vision, and Skills all take effect.

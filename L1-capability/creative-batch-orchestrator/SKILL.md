@@ -1,43 +1,44 @@
 ---
 name: creative-batch-orchestrator
-description: 批量编排 — 同一批次最多 10 条，可混用不同 Skill/MCP 并行提交与追踪
+description: Batch orchestration — up to 10 items per batch, mixed skills/MCP, parallel submit and track
 metadata:
   layer: L1-capability
-  requires: [creative-job-runner, creative-platform, creative-direct, creative-script2film, creative-script2film-keyframes]
+  requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]
   tags: [batch, orchestrator, multi-skill, video, async]
 ---
 
-# Creative Batch Orchestrator — 批量编排
+# Creative Batch Orchestrator
 
-将**多条独立生成任务**组成一个批次，**允许混用不同 Skill**（script2film、首尾帧、直出视频、批量图变体等），并行提交后统一追踪与交付。
+Group **multiple independent generation jobs** into one batch. **Mixed skills allowed** (script2film, keyframes, direct video, batch image variants, etc.) — parallel submit, unified tracking and delivery.
 
-> **依赖**：必须先加载 **creative-job-runner**（多 job UI 追踪）与 **creative-platform**（上传与前置说明）。  
-> **典型规模**：**10 条/批**（硬上限 10；超出则拆成多批）。  
-> **任务可见性**：批次内**全部走异步 job**（含直出图/视频），均出现在 `creative_list_jobs` / Dashboard；**禁止**在批次内调用同步 MCP（`creative_generate_*` / `creative_image_to_video` 等）。
+> **Requires**: load **creative-job-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
+> **Prompt gate**: For every item that hits image/video MCP, load **creative-gpt-image2-prompt** or **creative-seedance2-prompt** and craft `prompt` **before** submit — never raw user text.
+> **Typical size**: **10 items/batch** (hard cap 10; split larger requests).  
+> **Visibility**: all batch items are **async jobs** (including direct image/video) — appear in `creative_list_jobs` / Dashboard; **do not** use sync MCP inside a batch (`creative_generate_*` / `creative_image_to_video`, etc.).
 
-## 适用
+## When to use
 
-- 同一产品用多种成片方式 A/B（reference vs 首尾帧 vs 直出）
-- 多个商品 / 多条脚本一次性出片
-- 混排：3 条 script2film + 5 条 direct_video + 2 条 batch_variants 图片
-- 运营日更：批量提交后后台追踪，不必逐条等完再提交下一条
+- A/B same product across render modes (reference vs keyframes vs direct)
+- Multiple products / scripts in one run
+- Mixed batch: 3× script2film + 5× direct_video + 2× batch_variants images
+- Ops daily drops: submit batch, track in background — no need to wait per item
 
-## 不适用
+## When not to use
 
-- 单条任务 → 直接用对应 L1/L2 Skill，勿套批次
-- 同一 prompt 只要 N 张图变体 → **trend-viral-short** + `creative_submit_batch_variants`（单 job 即可）
-- 单条「当场就要结果、不进任务列表」→ **creative-direct** 同步 MCP（勿放入批次）
+- Single task → use the matching L1/L2 skill directly, no batch wrapper
+- Same prompt, N image variants only → **trend-viral-short** + `creative_submit_batch_variants` (one job)
+- User wants instant result, no job list → **creative-direct** sync MCP (not in batch)
 
 ---
 
-## 批次清单格式
+## Batch manifest format
 
-向用户确认或自行整理为 **items 数组**（1–10 条）：
+Confirm with user or organize as **items array** (1–10):
 
 ```yaml
-batch_label: "618 带货批次-A"          # 可选，便于汇报
+batch_label: "Summer sale batch-A"          # optional, for reporting
 items:
-  - label: "SKU-A 参考图成片"
+  - label: "SKU-A reference render"
     skill: creative-script2film
     input:
       script: "..."
@@ -47,14 +48,14 @@ items:
       brief: { product: "...", audience: "..." }
       delivery: { mode: "both" }
 
-  - label: "SKU-B 首尾帧"
+  - label: "SKU-B keyframes"
     skill: creative-script2film-keyframes
     input:
       script: "..."
       target_duration_sec: 30
       shot_duration_sec: 5
 
-  - label: "热点钩子-直出"
+  - label: "Trend hook — direct"
     skill: creative-direct-video
     mode: image_to_video                    # text_to_video | image_to_video | first_frame | first_last_frame
     input:
@@ -63,14 +64,14 @@ items:
       aspect_ratio: "9:16"
       reference_image_urls: ["https://..."]
 
-  - label: "主图-直出"
+  - label: "Hero image — direct"
     skill: creative-direct-image
     input:
       prompt: "..."
       aspect_ratio: "9:16"
       reference_urls: ["https://..."]
 
-  - label: "钩子图变体 x5"
+  - label: "Hook image variants x5"
     skill: trend-viral-short
     input:
       prompt: "..."
@@ -78,58 +79,58 @@ items:
       aspect_ratio: "9:16"
       preset: trend_viral_v1
 
-  - label: "独立站链接-成片"
+  - label: "Store URL — full video"
     skill: product-url-to-video
     workflow: script2film                   # script2film | keyframes | direct
     input:
       product_url: "https://..."
-      # Agent 先按 product-url-to-video Skill 抓取后再填 script / reference_image_urls
+      # Agent scrapes per product-url-to-video skill first, then fills script / reference_image_urls
 ```
 
-每条 **必须** 有唯一 `label`（交付表格用）。提交前为每条生成 **`client_request_id`（UUID）**，幂等防重复扣费。
+Each item **must** have a unique `label` (for delivery table). Generate a **`client_request_id` (UUID)** per item before submit — idempotent, avoids duplicate charges.
 
 ---
 
-## Skill → MCP 映射（提交时严格按表调用）
+## Skill → MCP mapping (strict on submit)
 
-| `skill` 字段 | 加载的 Skill 文档 | MCP 工具 | workflow_type |
-|--------------|-------------------|----------|---------------|
+| `skill` field | Skill doc | MCP tool | workflow_type |
+|---------------|-----------|----------|---------------|
 | `creative-script2film` | creative-script2film | `creative_submit_script2film` | `script2film` |
 | `creative-script2film-keyframes` | creative-script2film-keyframes | `creative_submit_script2film_keyframes` | `script2film` |
 | `creative-direct-video` | creative-direct | `creative_submit_workflow` | `direct_video` |
 | `creative-direct-image` | creative-direct | `creative_submit_workflow` | `direct_image` |
 | `trend-viral-short` | trend-viral-short | `creative_submit_batch_variants` | `batch_variants` |
-| `product-url-to-video` | product-url-to-video | 抓取完成后 → 上表任一 L1 MCP | 见 workflow |
+| `product-url-to-video` | product-url-to-video | after scrape → any L1 MCP above | per `workflow` |
 
-**批次内全部为异步 job**，提交后均有 `job_id`，可用 `creative_get_job` / `creative_list_jobs` / `creative_cancel_job` 追踪。
+**All batch items are async jobs** with `job_id`; track via `creative_get_job` / `creative_list_jobs` / `creative_cancel_job`.
 
-### 直出视频 `mode` → `creative_submit_workflow` 的 `input`
+### Direct video `mode` → `creative_submit_workflow` input
 
-统一调用：
+Unified call:
 
 ```json
 {
   "workflow_type": "direct_video",
-  "input": { "...见下表..." },
+  "input": { "...see table..." },
   "delivery": { "mode": "both" },
   "client_request_id": "<uuid>"
 }
 ```
 
-| mode | `input` 必填字段 |
-|------|------------------|
-| `text_to_video`（无参考图） | `prompt`, `duration_sec`, `aspect_ratio` |
-| `image_to_video`（参考图生视频） | 上列 + `reference_image_urls` 或 `reference_image_url` |
-| `first_frame`（单首帧） | 上列 + `video_mode: "first_frame"`, `first_frame_url` |
-| `first_last_frame`（首尾帧） | 上列 + `video_mode: "first_last_frame"`, `first_frame_url`, `last_frame_url` |
+| mode | Required `input` fields |
+|------|-------------------------|
+| `text_to_video` (no refs) | `prompt`, `duration_sec`, `aspect_ratio` |
+| `image_to_video` (reference) | above + `reference_image_urls` or `reference_image_url` |
+| `first_frame` | above + `video_mode: "first_frame"`, `first_frame_url` |
+| `first_last_frame` | above + `video_mode: "first_last_frame"`, `first_frame_url`, `last_frame_url` |
 
-示例（参考图直出视频）：
+Example (reference image to video):
 
 ```json
 {
   "workflow_type": "direct_video",
   "input": {
-    "prompt": "产品特写，缓慢旋转，带货风格",
+    "prompt": "Product hero, slow rotation, UGC ad style",
     "duration_sec": 5,
     "aspect_ratio": "9:16",
     "reference_image_urls": ["https://example.com/product.jpg"]
@@ -139,7 +140,7 @@ items:
 }
 ```
 
-### 直出图片 → `creative_submit_workflow`
+### Direct image → `creative_submit_workflow`
 
 ```json
 {
@@ -154,59 +155,59 @@ items:
 }
 ```
 
-### L2 垂类（product-url-to-video）
+### L2 vertical (product-url-to-video)
 
-批次项为 `product-url-to-video` 时：
+When batch item is `product-url-to-video`:
 
-1. **先**按 **product-url-to-video** Skill 完成 URL 抓取与用户确认（可批量抓取，再一次性确认整批）
-2. 根据该项的 `workflow` 字段映射到 L1 MCP（默认 `script2film`）
-3. `workflow: direct` 时映射为 `creative-direct-video` + `creative_submit_workflow`（`direct_video`），主图写入 `reference_image_urls`
-4. 将抓取到的 `product_name`、`description`、主图 URL 写入 `script` / `brief` / `reference_image_urls` 后再提交
+1. **First** complete URL scrape + user confirm per **product-url-to-video** (may scrape in bulk, confirm whole batch once)
+2. Map item's `workflow` to L1 MCP (default `script2film`)
+3. When `workflow: direct` → `creative-direct-video` + `creative_submit_workflow` (`direct_video`); hero image in `reference_image_urls`
+4. Write scraped `product_name`, `description`, hero URLs into `script` / `brief` / `reference_image_urls` before submit
 
 ---
 
-## 标准流程（必做）
+## Standard flow (required)
 
-### 1. 校验批次
+### 1. Validate batch
 
-- `items.length` 为 **1–10**；超过 10 → 拆批并告知用户
-- 每条 `label` 非空；`skill` 在上表范围内
-- 缺 script / prompt / URL 等必填项 → 向用户补问，**勿提交半成品**
-- 确认未使用同步 MCP（`creative_generate_*` 等）
+- `items.length` **1–10**; if >10 → split batches and tell user
+- Each `label` non-empty; `skill` in mapping table
+- Missing script / prompt / URL → ask user; **do not** submit partial items
+- Confirm no sync MCP (`creative_generate_*`, etc.)
 
-### 2. 估积分
+### 2. Estimate credits
 
-1. `creative_estimate` 了解批量任务预估
-2. 对**每条**调用 `creative_estimate`（`workflow_type` 与 input 对齐）：
+1. `creative_estimate` for batch overview (optional)
+2. **Per item** `creative_estimate` (`workflow_type` aligned with input):
 
-| skill | estimate workflow_type | params 示例 |
-|-------|------------------------|-------------|
+| skill | estimate workflow_type | params example |
+|-------|------------------------|----------------|
 | creative-script2film / keyframes | `script2film` | `{ target_duration_sec: 30 }` |
 | trend-viral-short | `batch_variants` | `{ count: 5 }` |
 | creative-direct-video | `direct_video` | `{ duration_sec: 5 }` |
 | creative-direct-image | `direct_image` | `{}` |
 
-3. **汇总表格**给用户确认（label、skill、预估积分、预估耗时）：
+3. **Summary table** for user confirmation (label, skill, est. credits, est. time):
 
 ```
-| # | label | skill | 预估积分 | 备注 |
-|---|-------|-------|----------|------|
+| # | label | skill | est. credits | notes |
+|---|-------|-------|--------------|-------|
 | 1 | SKU-A | script2film | 120 | ~15min |
-| 2 | 热点直出 | direct_video | 8 | ~3min job |
+| 2 | Trend direct | direct_video | 8 | ~3min job |
 | … | … | … | … | … |
-| 合计 | | | 528 | 约 20–40min 并行 |
+| Total | | | 528 | ~20–40min parallel |
 ```
 
-用户确认后再提交。
+Submit only after user confirms.
 
-### 3. 并行提交
+### 3. Parallel submit
 
-- **全部 items 异步提交**：一次性并行调用各 `creative_submit_*` / `creative_submit_workflow`（每条独立 `client_request_id`）
-- 维护内存表 **batch_tracker**（与 `creative_list_jobs` 互补）：
+- **All items async**: fire all `creative_submit_*` / `creative_submit_workflow` in parallel (unique `client_request_id` each)
+- Maintain in-memory **batch_tracker** (complements `creative_list_jobs`):
 
 ```json
 {
-  "batch_label": "618 带货批次-A",
+  "batch_label": "Summer sale batch-A",
   "items": [
     {
       "index": 1,
@@ -219,7 +220,7 @@ items:
     },
     {
       "index": 2,
-      "label": "热点直出",
+      "label": "Trend direct",
       "skill": "creative-direct-video",
       "workflow_type": "direct_video",
       "client_request_id": "uuid-2",
@@ -230,74 +231,74 @@ items:
 }
 ```
 
-提交后立即发送汇总：`已提交 N 条异步任务` + 各 `job_id`，并告知用户可在本对话中随时询问进度
+After submit, send summary: `Submitted N async jobs` + each `job_id`; tell user they can ask for progress in this thread.
 
-### 4. 追踪（creative-job-runner 扩展）
+### 4. Tracking (creative-job-runner extension)
 
-1. **禁止** sleep / 循环 `creative_get_job`；每条 submit 后发送 `tracking.user_message`
-2. 告知用户可在本对话中随时询问整批或单条任务进度
-3. 用户主动追问批次进度时，可 **单次** `creative_list_jobs` 或针对某 `job_id` 调用 `creative_get_job` 回答
-4. 全部终态后在本对话交付批次结果表（见 §5）
+1. **No** sleep / `creative_get_job` loops; send `tracking.user_message` per submit
+2. Tell user they can ask for whole-batch or single-job progress anytime
+3. When user asks, **once** `creative_list_jobs` or `creative_get_job` for specific `job_id`
+4. When all terminal → deliver batch result table (§5)
 
-**勿在对话中长时间等待**；保留各 `job_id`，用户可随时在本对话中询问进度
+**Do not wait in chat**; keep all `job_id`s — user can query anytime.
 
-### 5. 交付
+### 5. Delivery
 
-全部终态后输出 **批次结果表**：
+When all terminal, output **batch result table**:
 
 ```
-| # | label | skill | job_id | 状态 | 产物 |
-|---|-------|-------|--------|------|------|
+| # | label | skill | job_id | status | artifact |
+|---|-------|-------|--------|--------|----------|
 | 1 | SKU-A | script2film | uuid-1 | ✅ | https://... |
-| 2 | 热点直出 | direct_video | uuid-2 | ✅ | https://... |
-| 3 | 链接B | script2film | uuid-3 | ❌ | error: ... |
+| 2 | Trend direct | direct_video | uuid-2 | ✅ | https://... |
+| 3 | Store B | script2film | uuid-3 | ❌ | error: ... |
 ```
 
-- 成功项：`artifacts[0].urls.download` + `local` 落盘提示
-- 失败项：`error` + 是否建议单条重试（新 `client_request_id`）
-- 统计：成功 M / 共 N，总消耗积分
+- Success: `artifacts[0].urls.download` + local save hint
+- Failure: `error` + whether to retry single item (new `client_request_id`)
+- Stats: M succeeded / N total, total credits consumed
 
 ---
 
-## 取消与重试
+## Cancel & retry
 
-| 操作 | 行为 |
-|------|------|
-| 用户说「取消整批」 | 对 batch_tracker 中 `queued`/`running` 的 job 逐个 `creative_cancel_job` |
-| 用户说「取消第 3 条」 | 仅 cancel 对应 `job_id` |
-| 单条失败重试 | **新 UUID** 作为 `client_request_id`，勿复用失败项 id |
-| 整批重跑失败项 | 仅重提 failed 条目，保留成功项结果 |
-
----
-
-## 并发建议
-
-| 类型 | 建议 |
-|------|------|
-| script2film / keyframes | 可并行提交（服务端镜内并行）；整批 10 条同时跑时注意积分峰值 |
-| direct_video / direct_image | 可与其他 job 并行提交；单 job 内 1 步，耗时约 2–5 分钟 |
-| batch_variants | 单 job 内已批量，占 1 个批次槽位 |
-| 混合批次 | 10 条可一次性全部 submit，统一在本对话中追踪 |
+| Action | Behavior |
+|--------|----------|
+| User: "cancel whole batch" | `creative_cancel_job` for each `queued`/`running` in batch_tracker |
+| User: "cancel item 3" | cancel that `job_id` only |
+| Single item retry | **new UUID** as `client_request_id` — never reuse failed id |
+| Retry all failed | re-submit failed items only; keep successes |
 
 ---
 
-## 示例：10 条混排批次
+## Concurrency notes
 
-用户：「这 3 个商品链接各出 reference 成片，再加 2 条首尾帧脚本，5 条热点直出视频。」
-
-1. 拆 10 items（3×product-url-to-video + 2×keyframes + 5×direct-video）
-2. 抓取 3 个 URL → 生成 3 份 script + reference
-3. estimate 汇总 → 用户确认
-4. **并行 submit 10 个异步 job**（5× `direct_video` 走 `creative_submit_workflow`）
-5. 提交后立即告知用户可在对话中查询进度；用户追问或任务全终态后 → 交付 10 行结果表（含 job_id）
+| Type | Guidance |
+|------|----------|
+| script2film / keyframes | Parallel submit OK (server parallelizes shots); 10 full jobs at once → credit spike |
+| direct_video / direct_image | Parallel with other jobs; ~2–5 min per job |
+| batch_variants | One job, internal batch — uses 1 batch slot |
+| Mixed batch | All 10 may submit at once; track in one thread |
 
 ---
 
-## 注意
+## Example: 10-item mixed batch
 
-- 批次是 **Agent 侧编排概念**，服务端无统一 parent job；靠 `batch_tracker` + `creative_list_jobs` 维护
-- **直出也进任务列表**：批次内直出必须用 `creative_submit_workflow`，勿用 `creative_generate_video` 等同步工具
-- 单条对话、不进面板 → 仍可用 **creative-direct** 同步 MCP
-- 同一 `client_request_id` 幂等：重试必须换新 UUID
-- L2 Skill 的 preset / 约束（如 trend_viral_v1）仍按原 Skill 执行，本 Skill 只负责调度
-- 视频类优先确认用户要 **成片** 而非仅图片变体
+User: "Three product URLs as reference renders, plus two keyframe scripts, five trend direct videos."
+
+1. Split 10 items (3× product-url-to-video + 2× keyframes + 5× direct-video)
+2. Scrape 3 URLs → 3 scripts + references
+3. Estimate summary → user confirm
+4. **Parallel submit 10 async jobs** (5× `direct_video` via `creative_submit_workflow`)
+5. Tell user to query progress in chat; on follow-up or all terminal → 10-row result table with job_ids
+
+---
+
+## Notes
+
+- Batch is an **Agent-side orchestration concept** — no unified parent job on server; use `batch_tracker` + `creative_list_jobs`
+- **Direct jobs still appear in job list**: batch must use `creative_submit_workflow`, not sync `creative_generate_video`
+- Single chat, no dashboard → still OK to use **creative-direct** sync MCP outside batch
+- Same `client_request_id` is idempotent — retries need new UUID
+- L2 presets/constraints (e.g. trend_viral_v1) follow original skills; this skill only schedules
+- For video, confirm user wants **full deliverable**, not image variants only

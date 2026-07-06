@@ -1,59 +1,64 @@
 ---
 name: creative-direct
-description: 直出生图、生视频、图生视频（同步，单段 ≤15 秒；默认有声）
+description: Direct image/video generation (sync, single clip ≤15s; audio on by default)
 metadata:
   layer: L1-capability
-  requires: [creative-platform, creative-job-runner]
+  requires: [creative-platform, creative-job-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]
   tags: [image, video, sync, one-click]
 ---
 
-# Creative Direct — 直出
+# Creative Direct — Sync generation
 
-适用于单张广告图、**单段 ≤15 秒**带货短视频，无需故事板。
+For a single ad image or **single clip ≤15s** product short — no storyboard.
 
-> **时长路由**：用户要 **16 秒以上** / 30s / 60s / 多镜 / 故事板 → 用 **creative-script2film**（先 `creative_generate_script`），**勿**用本 Skill 硬做长片。
+> **Prompt gate (required)**: Before any MCP call below, load **creative-gpt-image2-prompt** (images) or **creative-seedance2-prompt** (video), output a paste-ready prompt, then pass it as MCP `prompt`. Never use raw user text.
 
-> **任务追踪**：调用任何生成工具前加载 **creative-job-runner**；同步任务也要给用户实时状态反馈。
+> **Duration routing**: User wants **>15s** / 30s / 60s / multi-shot / storyboard → use **creative-script2film** (start with `creative_generate_script`); **do not** force long-form through this skill.
 
-## 生视频 Skill 选型
+> **Job tracking**: Load **creative-job-runner** before any generation call; give real-time status even for sync tasks.
 
-| 需求 | Skill | MCP |
+## Video skill selection
+
+| Need | Skill | MCP |
 |------|-------|-----|
-| 有 reference 图，要产品一致 | **creative-script2film** | `creative_submit_script2film` |
-| 首尾帧过渡、运镜可控 | **creative-script2film-keyframes** | `creative_submit_script2film_keyframes` |
-| 单段短视频 | **本 Skill** | `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` |
+| Reference images, product consistency | **creative-script2film** | `creative_submit_script2film` |
+| First/last-frame transitions, controlled camera | **creative-script2film-keyframes** | `creative_submit_script2film_keyframes` |
+| Single short clip | **This skill** | `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` |
 
-## 生图
+## Image generation
 
-1. 告知用户：「正在生图，约 1–2 分钟…」
-2. **有用户本地/附件参考图时**（`@image` 等）：
-   - **优先** `creative_get_upload_instructions` → 本机 curl/terminal PUT 上传到 S3 → 取 `upload.file_url`
-   - 兜底（无本机终端）：`creative_upload_reference`（`content_base64`）
-3. `creative_generate_image`:
-   - `prompt`: 用户描述
+1. Tell user: "Generating image, ~1–2 minutes…"
+2. **Load creative-gpt-image2-prompt** — craft production-grade `prompt` from user intent + references
+3. **When user has local/attached reference images** (`@image`, etc.):
+   - **Prefer** `creative_get_upload_instructions` → local curl/terminal PUT to S3 → use `upload.file_url`
+   - Fallback (no local terminal): `creative_upload_reference` (`content_base64`)
+4. `creative_generate_image`:
+   - `prompt`: **output from creative-gpt-image2-prompt** (not raw user text)
    - `aspect_ratio`: `9:16` | `1:1` | `16:9`
-   - `reference_urls`: 可选，填入上一步 `file_url`（或已有 HTTPS 外链）
-4. 读取 `tracking.user_message`，返回 `artifacts[0].urls.download` 与 `local` 落盘提示
+   - `reference_urls`: optional — `file_url` from upload step (or existing HTTPS URLs)
+5. Read `tracking.user_message`; return `artifacts[0].urls.download` + local save hint
 
-## 生视频
+## Video generation
 
-1. 告知用户：「正在生视频，约 2–5 分钟…」
-2. 有用户参考图时用 **`creative_image_to_video`**（Seedance **参考生视频**，`reference_image` 角色，**非首尾帧**）：
-   - `reference_image_urls`: 产品 / 人物 / 场景 / 风格等（最多 9 张）
-   - 或单张 `reference_image_url`
-4. 无参考图时用 `creative_generate_video`（纯文生视频）
-5. 交付 artifacts + `tracking.user_message`
+1. Tell user: "Generating video, ~2–5 minutes…"
+2. **Load creative-seedance2-prompt** — craft production-grade `prompt` (reference roles, camera, audio rules)
+3. With user reference images → **`creative_image_to_video`** (Seedance **reference-to-video**, `reference_image` role — **not** first/last frame):
+   - `prompt`: **output from creative-seedance2-prompt**
+   - `reference_image_urls`: product / talent / scene / style, etc. (max 9)
+   - or single `reference_image_url`
+4. Without reference images → `creative_generate_video` (text-to-video) with **Seedance prompt from step 2**
+5. Deliver artifacts + `tracking.user_message`
 
-## 可选：BGM 配乐
+## Optional: BGM
 
-单段短视频如需背景音乐：
+For a single short clip with background music:
 
-1. `creative_generate_bgm`（可传 `script` / `brief` / `bgm_hint` 自动规划提示词）
-2. `creative_mux_bgm_into_video` — `video_url` + `bgm_url` 混入配乐
+1. `creative_generate_bgm` (may pass `script` / `brief` / `bgm_hint` for auto prompt)
+2. `creative_mux_bgm_into_video` — mux `video_url` + `bgm_url`
 
-> script2film 一键成片会在工作流内**自动**完成 BGM；直出视频需手动调用上述两步。
+> script2film one-click deliverables **auto-mix BGM** in workflow; direct video requires the two steps above.
 
-## 默认参数
+## Defaults
 
-- 竖版短视频：`aspect_ratio=9:16`, `duration_sec=5`
-- **有声视频**：`generate_audio=true`（默认）；镜内音效由 Seedance 生成
+- Vertical short: `aspect_ratio=9:16`, `duration_sec=5`
+- **Audio on**: `generate_audio=true` (default); in-shot SFX from Seedance

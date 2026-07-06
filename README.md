@@ -1,20 +1,20 @@
 # VidAU Creative Agent Skills
 
-VidAU Creative Agent 的 Skill 包，配合 [creative-agent](https://github.com/vidaudeveloper/creative-agent) MCP 服务使用。
+Skill package for VidAU Creative Agent, used with the [creative-agent](https://github.com/vidaudeveloper/creative-agent) MCP server.
 
-**一键安装（MCP + Skill）**：复制 [docs/SETUP.md](./docs/SETUP.md) 中的话术到 Agent 对话即可。
+**One-click install (MCP + Skills)**: copy the prompt from [docs/SETUP.md](./docs/SETUP.md) into your Agent chat.
 
-## Skill 分层
+## Skill layers
 
-| 层级 | 说明 | Skill |
-|------|------|-------|
-| **L0-foundation** | 通用基础 | `creative-platform`、`creative-job-runner` |
-| **L1-capability** | 制作能力链路 | `creative-direct`、`creative-script2film`、`creative-script2film-keyframes`、`creative-batch-orchestrator` |
-| **L2-vertical** | 垂类场景 | `trend-viral-short`、`product-url-to-video` |
+| Layer | Purpose | Skills |
+|-------|---------|--------|
+| **L0-foundation** | Shared foundation | `creative-platform`, `creative-job-runner`, `creative-narrative-router`, `creative-seedance2-prompt`, `creative-gpt-image2-prompt` |
+| **L1-capability** | Production workflows | `creative-direct`, `creative-script2film`, `creative-script2film-keyframes`, `creative-batch-orchestrator` |
+| **L2-vertical** | Vertical scenarios | `trend-viral-short`, `product-url-to-video` |
 
-依赖关系见 [`_manifest.yaml`](./_manifest.yaml)。
+See [`_manifest.yaml`](./_manifest.yaml) for dependencies.
 
-## MCP 配置
+## MCP config
 
 ```yaml
 mcp_servers:
@@ -25,19 +25,19 @@ mcp_servers:
     timeout: 300
 ```
 
-## 安装
+## Install
 
-复制 [docs/SETUP.md](./docs/SETUP.md) 中的话术到 Agent 对话，或在本仓库执行：
+Copy [docs/SETUP.md](./docs/SETUP.md) into Agent chat, or run in this repo:
 
 ```bash
 pnpm skills:install
 ```
 
-## 维护
+## Maintenance
 
 ```bash
 pnpm skills:validate
 pnpm skills:build
 ```
 
-更详细的 MCP 工具对照见 [SKILLS.md](./SKILLS.md)。
+MCP tool reference: [SKILLS.md](./SKILLS.md).

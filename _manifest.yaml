@@ -1,20 +1,20 @@
 version: "0.1.0"
 package: vidau-creative-skills
-description: VidAU Creative Agent Skill 包
+description: VidAU Creative Agent Skill package
 
 layers:
   L0-foundation:
-    description: 通用基础，所有垂类依赖
+    description: Shared foundation — required by all verticals
   L1-capability:
-    description: 制作能力链路
+    description: Production capability workflows
   L2-vertical:
-    description: 垂类场景 preset + 编排
+    description: Vertical scenarios — presets + orchestration
 
 skills:
   - id: creative-job-runner
     layer: L0-foundation
     path: L0-foundation/creative-job-runner
-    title: Creative 任务追踪器
+    title: Creative Job Runner
     tags: [foundation, async, tracking]
     requires: []
     mcp_tools:
@@ -26,17 +26,41 @@ skills:
   - id: creative-platform
     layer: L0-foundation
     path: L0-foundation/creative-platform
-    title: VidAU 平台网关
+    title: VidAU Platform Gateway
     tags: [foundation, platform, upload]
+    requires: []
+    mcp_tools: []
+
+  - id: creative-narrative-router
+    layer: L0-foundation
+    path: L0-foundation/creative-narrative-router
+    title: Narrative Structure Router
+    tags: [foundation, narrative, script, routing, storyboard]
+    requires: []
+    mcp_tools: []
+
+  - id: creative-seedance2-prompt
+    layer: L0-foundation
+    path: L0-foundation/creative-seedance2-prompt
+    title: Seedance 2.0 Video Prompt Engineering
+    tags: [foundation, prompt, seedance, video, jimeng]
+    requires: []
+    mcp_tools: []
+
+  - id: creative-gpt-image2-prompt
+    layer: L0-foundation
+    path: L0-foundation/creative-gpt-image2-prompt
+    title: GPT Image 2 Prompt Engineering
+    tags: [foundation, prompt, gpt-image-2, image, openai]
     requires: []
     mcp_tools: []
 
   - id: creative-direct
     layer: L1-capability
     path: L1-capability/creative-direct
-    title: 直出生图/生视频
+    title: Direct Image / Video Generation
     tags: [image, video, sync, one-click]
-    requires: [creative-platform, creative-job-runner]
+    requires: [creative-platform, creative-job-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]
     mcp_tools:
       - creative_generate_image
       - creative_generate_video
@@ -49,9 +73,9 @@ skills:
   - id: creative-script2film
     layer: L1-capability
     path: L1-capability/creative-script2film
-    title: 脚本→成片（参考图生视频）
+    title: Script to Video (Reference Mode)
     tags: [storyboard, async, script2film, reference, bgm, one-click, long-video, script]
-    requires: [creative-job-runner, creative-platform]
+    requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt]
     mcp_tools:
       - creative_generate_script
       - creative_submit_script2film
@@ -62,9 +86,9 @@ skills:
   - id: creative-script2film-keyframes
     layer: L1-capability
     path: L1-capability/creative-script2film-keyframes
-    title: 脚本→成片（首尾帧生视频）
+    title: Script to Video (First/Last Frame)
     tags: [storyboard, async, script2film, keyframes, first-frame, one-click]
-    requires: [creative-job-runner, creative-platform]
+    requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt]
     mcp_tools:
       - creative_submit_script2film_keyframes
       - creative_first_frame_to_video
@@ -75,12 +99,14 @@ skills:
   - id: creative-batch-orchestrator
     layer: L1-capability
     path: L1-capability/creative-batch-orchestrator
-    title: 批量编排生成
+    title: Batch Orchestrator
     tags: [batch, orchestrator, multi-skill, video, async]
     requires:
       [
         creative-job-runner,
         creative-platform,
+        creative-seedance2-prompt,
+        creative-gpt-image2-prompt,
         creative-direct,
         creative-script2film,
         creative-script2film-keyframes,
@@ -98,9 +124,9 @@ skills:
   - id: trend-viral-short
     layer: L2-vertical
     path: L2-vertical/trend-viral-short
-    title: 热点短视频
+    title: Trend Viral Short
     tags: [trend, batch, ecommerce]
-    requires: [creative-job-runner, creative-platform, creative-script2film, creative-script2film-keyframes, creative-direct]
+    requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-script2film, creative-script2film-keyframes, creative-direct]
     preset: trend_viral_v1
     mcp_tools:
       - creative_submit_batch_variants
@@ -113,9 +139,9 @@ skills:
   - id: product-url-to-video
     layer: L2-vertical
     path: L2-vertical/product-url-to-video
-    title: 商品链接→视频
+    title: Product URL to Video
     tags: [ecommerce, product, url, scrape, script2film, bgm, one-click]
-    requires: [creative-job-runner, creative-platform, creative-script2film, creative-script2film-keyframes]
+    requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-script2film, creative-script2film-keyframes]
     mcp_tools:
       - creative_submit_script2film
       - creative_submit_script2film_keyframes

@@ -14,7 +14,7 @@ pnpm skills:install
 
 ## Working with MCP
 
-1. **MCP** (image/video generation): `mcp_servers.vidau-creative.url` → `https://creative.vidau.info/mcp`
+1. **MCP** (image/video generation): `mcp_servers.vidau-creative.url` → `https://creative.vidau.ai/mcp`
 2. **Prompt skills** (required before generation MCP): `creative-seedance2-prompt` (video), `creative-gpt-image2-prompt` (image)
 3. **Skills** (workflows): see [SETUP.md](./docs/SETUP.md)
 

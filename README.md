@@ -19,7 +19,7 @@ See [`_manifest.yaml`](./_manifest.yaml) for dependencies.
 ```yaml
 mcp_servers:
   vidau-creative:
-    url: https://creative.vidau.info/mcp
+    url: https://creative.vidau.ai/mcp
     enabled: true
     connect_timeout: 60
     timeout: 300

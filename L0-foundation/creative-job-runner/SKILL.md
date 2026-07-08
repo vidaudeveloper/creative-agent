@@ -18,12 +18,13 @@ metadata:
 | MCP tool | Tracking mode |
 |----------|---------------|
 | `creative_submit_*` | **Chat tracking** — reply immediately after submit; user can ask for progress in this thread |
-| `creative_generate_image` / `_video` / `image_to_video` | **Sync** — tell estimated time before call; read `tracking.user_message` when done |
+| `creative_generate_image` | **Sync** — tell estimated time before call; read `tracking.user_message` when done |
+| `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` | **Async** — submit returns `job_id`; send `tracking.user_message` immediately; no sleep/polling in chat |
 | Any tool returning `job_id` | Must use chat tracking — no auto polling |
 
 ## Async job standard flow (required)
 
-1. **On submit** — read `tracking.user_message` from response, **send to user immediately** (job_id, estimated credits/time); tell user they can ask for progress anytime in this thread.
+1. **On submit** — read `tracking.user_message` from response, **send to user immediately** (job_id, estimated time); tell user they can ask for progress anytime in this thread.
 2. **End the turn** — when `tracking.should_continue_polling` is `false`, **do not** call `creative_get_job`, **do not** `sleep`.
 3. **Progress checks** — when user asks in this thread, call `creative_get_job` or `creative_list_jobs` once and answer; **no** auto sleep/polling loops.
 4. **User follow-up** — single `creative_get_job` or `creative_list_jobs` per question; still **no** polling loop.
@@ -37,11 +38,11 @@ metadata:
 | `sleep` in chat | Query only when user asks |
 | Wait for final video before replying | Confirm submit + job_id; user can follow up |
 
-## Sync generation (creative-direct)
+## Sync image / async video (creative-direct)
 
-**Before** calling: tell user "Generating, ~1–3 minutes, please wait."
+**Image (sync)**: tell user "Generating image, ~1–2 minutes…" before `creative_generate_image`; deliver artifacts when tool returns.
 
-After tool returns, deliver `tracking.user_message` + artifact URLs.
+**Video (async)**: tell user estimated time before submit; send `tracking.user_message` + `job_id` immediately; **end turn** — do not wait for video.
 
 ## Agent behavior
 

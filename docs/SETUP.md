@@ -2,7 +2,7 @@
 
 Please complete the full Creative Agent setup in the following order:
 
-1. **MCP**: Check whether `creative-agent` is already connected and working. If not, configure the MCP server `creative-agent` to point to `https://creative.vidau.info/mcp` (no Authorization required). Reload MCP and verify the connection is healthy.
+1. **MCP**: Check whether `creative-agent` is already connected and working. If not, configure the MCP server `creative-agent` to point to `https://creative.vidau.info/mcp` with `Authorization: Bearer ${OPEN_VIDAU_API_KEY}` in headers (set `OPEN_VIDAU_API_KEY=sk-...` in Agent env). Reload MCP and verify the connection is healthy.
 
 2. **Vision (image understanding)**: Add the following YAML to the Agent configuration to analyze user-uploaded product images, reference images, and similar assets:
 

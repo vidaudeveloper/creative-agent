@@ -1,15 +1,15 @@
 ---
 name: creative-direct
-description: Direct image/video generation (sync, single clip ≤15s; audio on by default)
+description: Direct image (sync) or single video clip ≤15s (async job)
 metadata:
   layer: L1-capability
   requires: [creative-platform, creative-job-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]
   tags: [image, video, sync, one-click]
 ---
 
-# Creative Direct — Sync generation
+# Creative Direct — Image sync, video async
 
-For a single ad image or **single clip ≤15s** product short — no storyboard.
+For a single ad image (sync) or **single clip ≤15s** product short (async job) — no storyboard.
 
 > **Prompt gate (required)**: Before any MCP call below, load **creative-gpt-image2-prompt** (images) or **creative-seedance2-prompt** (video), output a paste-ready prompt, then pass it as MCP `prompt`. Never use raw user text.
 
@@ -38,16 +38,17 @@ For a single ad image or **single clip ≤15s** product short — no storyboard.
    - `reference_urls`: optional — `file_url` from upload step (or existing HTTPS URLs)
 5. Read `tracking.user_message`; return `artifacts[0].urls.download` + local save hint
 
-## Video generation
+## Video generation (async)
 
-1. Tell user: "Generating video, ~2–5 minutes…"
+1. Tell user: "Submitting video job, ~3–8 minutes for 15s clip…"
 2. **Load creative-seedance2-prompt** — craft production-grade `prompt` (reference roles, camera, audio rules)
 3. With user reference images → **`creative_image_to_video`** (Seedance **reference-to-video**, `reference_image` role — **not** first/last frame):
    - `prompt`: **output from creative-seedance2-prompt**
    - `reference_image_urls`: product / talent / scene / style, etc. (max 9)
    - or single `reference_image_url`
 4. Without reference images → `creative_generate_video` (text-to-video) with **Seedance prompt from step 2**
-5. Deliver artifacts + `tracking.user_message`
+5. **Immediately** send `tracking.user_message` with `job_id`; **end turn** — do not wait or poll
+6. When user asks progress → single `creative_get_job`; when `completed`, deliver `artifacts[0].urls.download`
 
 ## Optional: BGM
 

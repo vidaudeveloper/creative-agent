@@ -9,7 +9,7 @@ metadata:
 
 # Creative Platform Gateway
 
-Current test environment **does not require credits/entitlement checks** — generation MCP tools can be called directly.
+Billing is via **open.vidau.ai** using the user's API key in MCP `Authorization: Bearer ${OPEN_VIDAU_API_KEY}` — no platform coin/entitlement checks on creative-agent.
 
 ## Prompt gate (required before any generation MCP)
 
@@ -25,7 +25,8 @@ Workflow: load prompt skill → craft paste-ready prompt → call downstream ski
 
 ## Flow
 
-1. Call `creative_estimate` for time/credit estimate (optional)
+0. Ensure MCP is configured with `Authorization: Bearer ${OPEN_VIDAU_API_KEY}` (open.vidau.ai API key in Agent env, e.g. `~/.hermes/.env`)
+1. Call `creative_estimate` for time estimate (optional)
 2. Call `creative_generate_*` / `creative_submit_*` directly
 
 ## Local reference upload (recommended)

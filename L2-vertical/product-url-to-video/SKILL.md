@@ -41,7 +41,7 @@ Message contains `https://` and looks like a product page (`product`, `/p/`, `/d
 ```
 1. Scrape product info (Agent local tools)
 2. Show summary to user and confirm
-3. Estimate credits + submit generation (MCP)
+3. Estimate time + submit generation (MCP)
 4. creative-job-runner — send tracking.user_message immediately; no sleep/polling
 ```
 

@@ -53,7 +53,7 @@ Follow **creative-narrative-router**:
 
 ### 2. Generate script (required when user has no full script)
 
-Call **`creative_generate_script`** (no credits charged):
+Call **`creative_generate_script`** (LLM only — no open.vidau.ai AIGC call):
 
 ```json
 {
@@ -97,9 +97,9 @@ On confirm, check that **`narrative_structure`** matches intent; if not, adjust 
 3. For each line: local TTS → `ffprobe` duration → `duration_sec = clamp(ceil(sec + 0.4), 4, 12)`.
 4. Build `voiceover_shot_plan` + save local `vo-NN.mp3` + manifest for post-process.
 
-### 3. Estimate credits + submit
+### 3. Estimate time + submit
 
-1. `creative_estimate` with `workflow_type=script2film`
+1. `creative_estimate` with `workflow_type=script2film` (returns `eta_sec` / `eta_min`, optional `shot_count`)
 2. `creative_submit_script2film`:
    ```json
    {

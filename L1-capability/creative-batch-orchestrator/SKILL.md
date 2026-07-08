@@ -175,7 +175,7 @@ When batch item is `product-url-to-video`:
 - Missing script / prompt / URL → ask user; **do not** submit partial items
 - Confirm no sync MCP (`creative_generate_*`, etc.)
 
-### 2. Estimate credits
+### 2. Estimate time
 
 1. `creative_estimate` for batch overview (optional)
 2. **Per item** `creative_estimate` (`workflow_type` aligned with input):
@@ -187,15 +187,15 @@ When batch item is `product-url-to-video`:
 | creative-direct-video | `direct_video` | `{ duration_sec: 5 }` |
 | creative-direct-image | `direct_image` | `{}` |
 
-3. **Summary table** for user confirmation (label, skill, est. credits, est. time):
+3. **Summary table** for user confirmation (label, skill, est. time):
 
 ```
-| # | label | skill | est. credits | notes |
-|---|-------|-------|--------------|-------|
-| 1 | SKU-A | script2film | 120 | ~15min |
-| 2 | Trend direct | direct_video | 8 | ~3min job |
+| # | label | skill | est. time | notes |
+|---|-------|-------|-----------|-------|
+| 1 | SKU-A | script2film | ~15min | |
+| 2 | Trend direct | direct_video | ~3min | |
 | … | … | … | … | … |
-| Total | | | 528 | ~20–40min parallel |
+| Total | | | ~20–40min parallel | |
 ```
 
 Submit only after user confirms.
@@ -256,7 +256,7 @@ When all terminal, output **batch result table**:
 
 - Success: `artifacts[0].urls.download` + local save hint
 - Failure: `error` + whether to retry single item (new `client_request_id`)
-- Stats: M succeeded / N total, total credits consumed
+- Stats: M succeeded / N total
 
 ---
 
@@ -275,7 +275,7 @@ When all terminal, output **batch result table**:
 
 | Type | Guidance |
 |------|----------|
-| script2film / keyframes | Parallel submit OK (server parallelizes shots); 10 full jobs at once → credit spike |
+| script2film / keyframes | Parallel submit OK (server parallelizes shots); 10 full jobs at once → high API load |
 | direct_video / direct_image | Parallel with other jobs; ~2–5 min per job |
 | batch_variants | One job, internal batch — uses 1 batch slot |
 | Mixed batch | All 10 may submit at once; track in one thread |

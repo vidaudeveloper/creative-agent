@@ -1,67 +1,135 @@
 #!/usr/bin/env node
 /**
- * 从 GitHub 远程批量安装全部 Skill（无需本地 clone）
+ * Batch-install all Creative Agent skills.
  *
- * 用法:
+ * Local mode (default): copy skill dirs from this repo into ~/.hermes/skills/.
+ *   No raw.githubusercontent.com requests — avoids GitHub CDN 429 rate limits.
+ *
+ * Remote mode (--remote): install via GitHub identifier (Contents API).
+ * From-GitHub mode (--from-github): fetch _manifest.yaml via GitHub API (no clone, no raw CDN).
+ *
+ * Usage:
  *   pnpm skills:install
- *   SKILLS_GITHUB_BRANCH=main pnpm skills:install
+ *   node scripts/install-skills.mjs --force
+ *   node scripts/install-skills.mjs --remote --force
+ *   node scripts/install-skills.mjs --from-github --remote --force
  */
 import { spawnSync } from "node:child_process";
+import { cp, mkdir, readFile, rm } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repo = (process.env.SKILLS_GITHUB_REPO ?? "vidaudeveloper/creative-agent").replace(
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+const repo = (process.env.SKILLS_GITHUB_REPO ?? "vidaudeveloper/creative-agent-skill").replace(
   /\/+$/,
   ""
 );
-const branch = process.env.SKILLS_GITHUB_BRANCH ?? "main";
 const category = process.env.SKILLS_INSTALL_CATEGORY ?? "vidau-creative";
 const force = process.argv.includes("--force") || process.env.SKILLS_INSTALL_FORCE === "1";
+const remote = process.argv.includes("--remote") || process.env.SKILLS_INSTALL_REMOTE === "1";
+const fromGithub =
+  process.argv.includes("--from-github") || process.env.SKILLS_INSTALL_FROM_GITHUB === "1";
 const cli = process.env.SKILLS_CLI?.trim() || "hermes";
+const hermesHome = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
 
-const RAW_BASE = `https://raw.githubusercontent.com/${repo}/${branch}`;
+async function parseManifestFromRaw(raw) {
+  const skills = [];
+  let current = null;
 
-const SKILL_PATHS = [
-  "L0-foundation/creative-platform",
-  "L0-foundation/creative-job-runner",
-  "L1-capability/creative-direct",
-  "L1-capability/creative-script2film",
-  "L1-capability/creative-script2film-keyframes",
-  "L1-capability/creative-batch-orchestrator",
-  "L2-vertical/trend-viral-short",
-  "L2-vertical/product-url-to-video",
-];
+  for (const line of raw.split("\n")) {
+    const idMatch = line.match(/^\s+-\s+id:\s+(\S+)/);
+    const pathMatch = line.match(/^\s+path:\s+(\S+)/);
+    if (idMatch) {
+      current = { id: idMatch[1] };
+      skills.push(current);
+    } else if (pathMatch && current && !current.path) {
+      current.path = pathMatch[1];
+    }
+  }
 
-function skillUrl(path) {
-  return `${RAW_BASE}/${path}/SKILL.md`;
+  return skills.filter((s) => s.id && s.path);
 }
 
-function main() {
-  console.info(
-    `[skills:install] 从 GitHub 远程安装 ${SKILL_PATHS.length} 个 skill（${RAW_BASE}）...\n`
-  );
+async function parseManifest() {
+  const raw = await readFile(join(repoRoot, "_manifest.yaml"), "utf8");
+  return parseManifestFromRaw(raw);
+}
+
+async function fetchManifestFromGitHub() {
+  const branch = process.env.SKILLS_GITHUB_BRANCH ?? "main";
+  const url = `https://api.github.com/repos/${repo}/contents/_manifest.yaml?ref=${branch}`;
+  const resp = await fetch(url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "creative-agent-skill-install",
+      ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+    },
+  });
+  if (!resp.ok) {
+    throw new Error(`GitHub API returned ${resp.status} for _manifest.yaml`);
+  }
+  const data = await resp.json();
+  const raw = Buffer.from(data.content, "base64").toString("utf8");
+  return parseManifestFromRaw(raw);
+}
+
+async function installLocal(skill) {
+  const src = join(repoRoot, skill.path);
+  const dest = join(hermesHome, "skills", category, skill.id);
+  await rm(dest, { recursive: true, force: true });
+  await mkdir(dirname(dest), { recursive: true });
+  await cp(src, dest, { recursive: true });
+}
+
+function installRemote(skill) {
+  const identifier = `${repo}/${skill.path}`;
+  const args = ["skills", "install", identifier, "--yes", "--category", category];
+  if (force) args.push("--force");
+  return spawnSync(cli, args, { stdio: "inherit", encoding: "utf8" });
+}
+
+async function main() {
+  const skills = fromGithub ? await fetchManifestFromGitHub() : await parseManifest();
+  const mode = fromGithub
+    ? "GitHub API manifest + remote install"
+    : remote
+      ? "remote (GitHub API)"
+      : "local copy";
+  console.info(`[skills:install] ${mode}: ${skills.length} skill(s) → ${hermesHome}/skills/${category}/\n`);
 
   let failed = 0;
-  for (const path of SKILL_PATHS) {
-    const name = path.split("/").pop();
-    const url = skillUrl(path);
-    const args = ["skills", "install", url, "--yes", "--category", category];
-    if (force) args.push("--force");
-
-    console.info(`→ ${name}`);
-    console.info(`  ${url}`);
-    const r = spawnSync(cli, args, { stdio: "inherit", encoding: "utf8" });
-    if (r.status !== 0) {
-      console.error(`✗ ${name} 安装失败 (exit ${r.status})`);
-      failed += 1;
+  const useRemote = remote || fromGithub;
+  for (const skill of skills) {
+    console.info(`→ ${skill.id}`);
+    if (useRemote) {
+      const r = installRemote(skill);
+      if (r.status !== 0) {
+        console.error(`✗ ${skill.id} failed (exit ${r.status})`);
+        failed += 1;
+      } else {
+        console.info(`✓ ${skill.id}\n`);
+      }
     } else {
-      console.info(`✓ ${name}\n`);
+      try {
+        await installLocal(skill);
+        console.info(`✓ ${skill.id}\n`);
+      } catch (err) {
+        console.error(`✗ ${skill.id}: ${err.message}`);
+        failed += 1;
+      }
     }
   }
 
   if (failed) {
-    console.error(`[skills:install] 完成，${failed} 个失败`);
+    console.error(`[skills:install] done with ${failed} failure(s)`);
     process.exit(1);
   }
-  console.info("[skills:install] 全部安装完成");
+  console.info("[skills:install] all skills installed");
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

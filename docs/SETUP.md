@@ -13,6 +13,38 @@ auxiliary:
     model: gemini-3.1-flash-image-preview
 ```
 
-3. **Skills**: Install **all** Skills from the GitHub repository (**no local clone required** — fetch directly from GitHub). Skill repository: `https://github.com/vidaudeveloper/creative-agent-skill` (branch `main`). Read `https://raw.githubusercontent.com/vidaudeveloper/creative-agent-skill/main/_manifest.yaml`, list every skill from `skills[].path` (in order: L0-foundation → L1-capability → L2-vertical, including **creative-seedance2-prompt** and **creative-gpt-image2-prompt**), and for each path run `skills install https://raw.githubusercontent.com/vidaudeveloper/creative-agent-skill/main/<path>/SKILL.md --force --yes --category vidau-creative`. After installation, verify that the installed list matches the manifest.
+3. **Skills**: Install **all** Skills from `https://github.com/vidaudeveloper/creative-agent-skill` (branch `main`). **Do not** use `raw.githubusercontent.com` URLs — they often return HTTP 429. The skill list is defined in `_manifest.yaml` — never hardcode skill names.
+
+   **Preferred (one shallow clone, zero raw CDN requests):**
+
+   ```bash
+   git clone --depth 1 https://github.com/vidaudeveloper/creative-agent-skill.git /tmp/creative-agent-skill
+   node /tmp/creative-agent-skill/scripts/install-skills.mjs --force
+   ```
+
+   The script reads local `_manifest.yaml`, then copies every `skills[].path` (including `references/`) into `~/.hermes/skills/vidau-creative/`.
+
+   **Fallback A (no local copy, but git available):**
+
+   ```bash
+   git clone --depth 1 https://github.com/vidaudeveloper/creative-agent-skill.git /tmp/creative-agent-skill
+   node /tmp/creative-agent-skill/scripts/install-skills.mjs --remote --force
+   ```
+
+   **Fallback B (no git):** fetch `_manifest.yaml` via GitHub Contents API (not raw CDN), parse every `skills[].path` in manifest order, and for each path run:
+
+   ```bash
+   skills install vidaudeveloper/creative-agent-skill/<path> --force --yes --category vidau-creative
+   ```
+
+   Manifest URL: `https://api.github.com/repos/vidaudeveloper/creative-agent-skill/contents/_manifest.yaml?ref=main` (decode the `content` field from base64).
+
+   Or run the install script with API-fetched manifest (download script via the same Contents API if needed):
+
+   ```bash
+   node install-skills.mjs --from-github --force
+   ```
+
+   After installation, verify that the installed skill list matches every `skills[].id` in `_manifest.yaml`.
 
 4. **Apply changes**: Run `/reset` (or `/new`) to restart the session so MCP, Vision, and Skills all take effect.

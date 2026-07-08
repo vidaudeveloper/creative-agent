@@ -27,10 +27,11 @@ mcp_servers:
 
 ## Install
 
-Copy [docs/SETUP.md](./docs/SETUP.md) into Agent chat, or run in this repo:
+Copy [docs/SETUP.md](./docs/SETUP.md) into Agent chat, or install locally (no `raw.githubusercontent.com` — avoids 429):
 
 ```bash
-pnpm skills:install
+pnpm skills:install          # copies from this repo into ~/.hermes/skills/vidau-creative/
+pnpm skills:install --remote # fallback: install via GitHub Contents API
 ```
 
 ## Maintenance

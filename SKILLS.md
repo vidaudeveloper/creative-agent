@@ -1,7 +1,7 @@
 # VidAU Creative Agent Skills
 
-> **Repo**: [creative-agent-skill](https://github.com/vidaudeveloper/creative-agent-skill)  
-> **MCP server**: [creative-agent](https://github.com/vidaudeveloper/creative-agent)
+> **Repo**: [creative-agent](https://github.com/vidaudeveloper/creative-agent)  
+> **MCP**: `https://creative.vidau.ai/mcp`
 
 ## Install
 

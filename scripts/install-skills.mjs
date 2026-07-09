@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const repo = (process.env.SKILLS_GITHUB_REPO ?? "vidaudeveloper/creative-agent-skill").replace(
+const repo = (process.env.SKILLS_GITHUB_REPO ?? "vidaudeveloper/creative-agent").replace(
   /\/+$/,
   ""
 );

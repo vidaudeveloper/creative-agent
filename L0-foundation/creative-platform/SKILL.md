@@ -9,7 +9,12 @@ metadata:
 
 # Creative Platform Gateway
 
-Current test environment **does not require credits/entitlement checks** — generation MCP tools can be called directly.
+## Billing
+
+- Generation (sync + async) requires **VIP** and **deducts coins**.
+- Non-VIP → share the purchase URL from the MCP error.
+- Insufficient coins → ask user to top up.
+- **Free**: `creative_estimate`, `creative_get_upload_instructions`, `creative_upload_reference`, `creative_generate_script`, `creative_list_models`, `creative_mux_bgm_into_video`.
 
 ## Prompt gate (required before any generation MCP)
 
@@ -26,7 +31,7 @@ Workflow: load prompt skill → craft paste-ready prompt → call downstream ski
 ## Flow
 
 1. Call `creative_estimate` for time/credit estimate (optional)
-2. Call `creative_generate_*` / `creative_submit_*` directly
+2. Call `creative_generate_*` / `creative_submit_*`
 
 ## Local reference upload (recommended)
 

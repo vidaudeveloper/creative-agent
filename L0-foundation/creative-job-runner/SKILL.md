@@ -41,7 +41,7 @@ metadata:
 
 **Before** calling: tell user "Generating, ~1–3 minutes, please wait."
 
-After tool returns, deliver `tracking.user_message` + artifact URLs.
+After tool returns, deliver `tracking.user_message` + artifact URLs. VIP or coin errors → follow **creative-platform** billing rules.
 
 ## Agent behavior
 

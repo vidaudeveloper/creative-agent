@@ -2,7 +2,7 @@
 
 Please complete the full Creative Agent setup in the following order:
 
-1. **MCP**: Check whether `creative-agent` is already connected and working. If not, configure the MCP server `creative-agent` to point to `https://creative.vidau.ai/mcp` (no Authorization required). Reload MCP and verify the connection is healthy.
+1. **MCP**: Check whether `creative-agent` is already connected and working. If not, configure the MCP server `creative-agent` to point to `https://creative.vidau.ai/mcp`. Reload MCP and verify the connection is healthy.
 
 2. **Skills**: Install **all** Skills from `https://github.com/vidaudeveloper/creative-agent-skill` (branch `main`). **Do not** use `raw.githubusercontent.com` URLs — they often return HTTP 429. The skill list is defined in `_manifest.yaml` — never hardcode skill names.
 

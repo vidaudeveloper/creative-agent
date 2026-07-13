@@ -18,7 +18,7 @@ Skill package for VidAU Creative Agent, used with the [creative-agent](https://g
 curl -fsSL https://raw.githubusercontent.com/vidaudeveloper/creative-agent/main/tools/install-jy-compile.sh | bash
 ```
 
-| **L2-vertical** | Vertical scenarios | `trend-viral-short`, `product-url-to-video` |
+| **L2-vertical** | Vertical scenarios | `trend-viral-short`, `product-url-to-video`, `product-image-to-jianying-remix` |
 
 See [`_manifest.yaml`](./_manifest.yaml) for dependencies.
 

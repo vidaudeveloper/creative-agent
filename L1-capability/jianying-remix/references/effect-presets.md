@@ -9,7 +9,7 @@ jy-compile text-animations --kind intro --free --limit 40
 jy-compile text-animations --kind outro --free --grep 渐
 ```
 
-若用户允许 VIP，可另选 `撕纸拼贴`、`快速缩放`、`复古撕纸` 等（以本机目录 `is_vip` 为准）。
+若用户允许 VIP，可另选 `撕纸拼贴`、`快速缩放`、`复古撕纸` 等（以本机目录 `is_vip` 为准）。**选用前必须提醒用户**：VIP 素材需要本机剪映登录有效 **剪映 VIP 账号**；请用户确认有 VIP 后再写入 Plan，否则坚持免费项。
 
 **原则：按片段内容选效果，禁止全片同一特效/同一转场。** Preset 名只表示整体气质与候选池，不是「整条时间轴套一套」。
 

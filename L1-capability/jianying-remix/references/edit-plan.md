@@ -115,7 +115,7 @@ jy-compile text-animations --kind intro --free --limit 30
 jy-compile text-animations --kind outro --grep 渐 --free
 ```
 
-默认只用非 VIP。不确定时先查目录再写入。
+默认只用非 VIP。不确定时先查目录再写入。若改用 VIP 素材，须先提醒用户确认本机有**剪映 VIP 账号**。
 
 ### `sticker`（贴纸）
 
@@ -159,7 +159,7 @@ jy-compile effects --grep 边框 --limit 30
 jy-compile text-animations --kind intro --free --limit 40
 ```
 
-默认只用非 VIP。不确定时先 `effects --grep` / `text-animations` 再写入 Plan。选型规则见 [effect-presets.md](effect-presets.md)。
+默认只用非 VIP。不确定时先 `effects --grep` / `text-animations` 再写入 Plan。选型规则见 [effect-presets.md](effect-presets.md)。改用 VIP 前须提醒用户确认有**剪映 VIP 账号**。
 
 ## 校验
 

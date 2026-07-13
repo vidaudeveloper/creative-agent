@@ -1,35 +1,42 @@
 ---
 name: jianying-remix
 description: >-
-  Local CapCut/Jianying remix director — per-clip content-aware effects/transitions,
-  optional subtitles/stickers; BGM on by default (user file or MCP generate),
-  compile draft via jianying-draft-compiler, import into user's Jianying;
-  on Windows RPA-export MP4. Not for cloud MP4 or AI fake-alpha plates.
+  Local CapCut/Jianying remix director for user-provided videos only —
+  per-clip effects/transitions, optional subtitles/stickers; BGM on by default;
+  can batch-output multiple remix variants (different transitions/effects/BGM)
+  from the same clips; compile/import draft; Windows RPA-export MP4.
+  Does NOT call creative_submit_workflow / direct_video / AI clip generation.
 metadata:
   layer: L1-capability
   requires: []
-  tags: [jianying, capcut, remix, transition, subtitle, sticker, bgm, local, draft, editor, windows-export]
+  tags: [jianying, capcut, remix, transition, subtitle, sticker, bgm, batch, local, draft, editor, windows-export]
 ---
 
 # Jianying Remix — 本机草稿导演
 
 用户提供多段视频时，你是**智能混剪导演**；本机 `jianying-draft-compiler` 是**草稿编译器**；用户剪映是**特效渲染器**（Windows 可 RPA 自动导出）。
 
-**不做**：自研 453/1097 特效渲染、云端服务器导出成片、AI 生 JPG 假透明转场板。
+**素材来源（强制）**：只用**用户提供的视频**（本地 path / 可下载 url / 上游 skill 已落盘的片段）。  
+**禁止**：`creative_submit_workflow`、`direct_video`、`creative_image_to_video`、`creative_generate_video`、`creative_submit_batch_variants` 等任何 AI 出片。缺素材就请用户补视频，或改走 **product-image-to-jianying-remix**（那边负责图生片段）。
+
+**接受的「批量生成」**：同一套用户视频 → 批量产出**多版混剪**（不同转场 / 特效 / BGM 组合），每版一份 Edit Plan → 编译/导入（见 §1.0）。
+
+**不做**：自研 453/1097 特效渲染、云端服务器导出成片、AI 生 JPG 假透明转场板、AI 生视频素材。
 
 ## 何时使用
 
-- 用户要「剪映级」转场/边框/胶片等模板感混剪
-- 本机有（或可安装）剪映 + 多段本地/可下载视频
+- 用户已有多段本地/可下载视频，要「剪映级」转场/边框/胶片等模板感混剪
 - 用户说时装混剪、撕纸边框、快切、CapCut 风格等
 - 用户要加**字幕 / 标题字 / 贴纸**（按需）；**BGM 默认带上**（用户可关）
+- 用户要对**同一批素材**批量出多版（不同转场/特效/BGM）混剪草稿或成片
 
 ## 何时不用
 
 | 需求 | 改走 |
 |------|------|
 | 无剪映、只要快速拼接成片 | 其它 remix / ffmpeg / creative-agent 成片链路 |
-| 单镜头生成 | `creative-direct` / script2film |
+| 只有产品图、还没有视频片段 | **product-image-to-jianying-remix**（图生片段后再回本 skill） |
+| 要 AI 文生/图生视频 | `creative-direct` / script2film / L2 产品图流水线 — **不要**在本 skill 里调 `direct_video` |
 | 只要云端 MP4、不打开本机剪映 | 不要用本 skill 承诺自动成片 |
 
 ## 前置探测（每次必做）
@@ -49,10 +56,42 @@ Windows 导出能力：`jy-compile export-check` + [references/windows-export.md
 
 ### 1. 收素材与意图
 
-- 本地 path 优先；画幅默认 `9:16`
+- **必须先有视频**：本地 path 优先；画幅默认 `9:16`
+- 无视频、只有图 → **停止本 skill 的 AI 出片尝试**，引导 **product-image-to-jianying-remix**
 - Preset 只是**素材池**，不是整片套一层：[references/effect-presets.md](references/effect-presets.md)
-- 默认 `allow_vip=false`
-- 询问或识别：字幕/贴纸是否需要；BGM **默认要加**（有用户文件优先，否则自动生成；用户明确说不要配乐则跳过）
+- 默认 `allow_vip=false`（转场 / 特效 / 文字动画只用非 VIP）
+- **VIP 提醒（必做）**：若用户想用 VIP 转场/特效，或 Plan 中将写入 `is_vip=true` 项，须先明确提醒：
+  > 将使用剪映 VIP 素材；请确认本机剪映已登录**有效的剪映 VIP 账号**，否则预览/导出可能水印、无法应用或弹窗打断。若有 VIP，请告知，我再改用 VIP 素材；没有则继续用免费效果。
+  仅当用户确认「有剪映 VIP / 可以用 VIP」后，才设 `allow_vip=true` 并选用 VIP 项；未确认一律免费。
+- 询问或识别：字幕/贴纸是否需要；BGM **默认要加**（有用户文件优先，否则 `creative_generate_bgm`；用户明确说不要配乐则跳过）
+- 用户要**多版混剪** → §1.0；只要一版 → 跳过 §1.0，直接 §1.5
+
+### 1.0 批量混剪变体（接受 · 仅用户视频）
+
+对**同一组用户提供的 clips**，批量生成多版「不同转场 / 特效 / BGM」的剪映草稿（或导出）。  
+**不是**批量 AI 生成视频。
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `variant_count` | `3` | 1–5 版；过多则拆次确认 |
+| `clips` | 用户提供 | 各版共用同一 `clips[]` |
+| 差异维度 | 转场 + 分段特效 + BGM | 每版至少换一类；优先三类都换 |
+
+**步骤：**
+
+1. 锁定共用 `clips[]`（path/url）；校验文件可读  
+2. 规划 `variant_count` 套差异表，例如：
+
+| 版 | 气质 | 转场策略 | 特效策略 | BGM |
+|----|------|----------|----------|-----|
+| A | 清爽促销 | 快切/闪白系 | 镭射边框 + 细闪轮换 | 偏亮节奏 |
+| B | 胶片质感 | 溶解/模糊系 | 胶片框 + 漏光轮换 | 偏缓 |
+| C | 潮流故障 | 故障/抖动接缝 | 轻故障 + 星光轮换 | 电子感 |
+
+3. **每一版**独立走 §1.5→§2→§3（以及按需 §4）：单独 Edit Plan、`title`/`--name` 带后缀 `-v1`/`-v2`…  
+4. 段内选型规则与单版相同（禁止一版内全片同一特效/同一转场）  
+5. BGM：用户无文件时每版可各调一次 `creative_generate_bgm`（mood 不同）；有用户 BGM 则可同曲不同 `volume`/fade，或用户允许时再生成  
+6. 交付时列表：`版本 | 草稿名 | 转场要点 | 特效要点 | BGM | 导出路径（若有）`
 
 ### 1.5 按片段内容选型（强制）
 
@@ -166,16 +205,18 @@ jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --resoluti
 | `export-check` 失败 | 装 windows extras；确认在 Windows |
 | `export` 找不到草稿 | 剪映回首页；草稿名=文件夹名；robocopy/重启剪映 |
 | `export` 超时 / 找不到按钮 | 版本 UI 不兼容或 VIP 弹窗；改手动导出 |
-| VIP 特效 | 换免费 preset |
+| VIP 特效无法应用 / 弹窗 | 确认是否有剪映 VIP；无则换免费 preset 并重编；有则请用户登录 VIP 后重开剪映 |
 | 贴纸图打不开 | 检查 path/url；改 PNG；或去掉 sticker overlay |
 | BGM 失败 / 无声音 | 确认是纯音频；看 compile warnings；生成失败则请用户补文件后重编；路径经 import 改写 |
+| 用户要 AI 出片 | 拒绝在本 skill 调 `direct_video`；改 **product-image-to-jianying-remix** 或 creative-direct |
+| 批量变体部分失败 | 已成功版本照常交付；失败版单独重编 |
 
 ## 交付话术
 
 **Windows 自动导出成功：**
 
-> 已完成混剪并导出：`<mp4路径>`。草稿名 `<name>`。分段特效：…；接缝转场：…；BGM：…；字幕/贴纸：…（若有）。
+> 已完成混剪并导出：`<mp4路径>`。草稿名 `<name>`。分段特效：…；接缝转场：…；BGM：…；字幕/贴纸：…（若有）。效果均为免费项 / 已按你的剪映 VIP 使用 VIP 素材（二选一如实说明）。
 
 **macOS / 仅导入：**
 
-> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段特效与转场已按素材内容区分。请退出重开剪映后打开预览并手动导出。本机为 Mac，无法 RPA 自动导出。
+> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段特效与转场已按素材内容区分（默认免费；若用了 VIP 素材请确认剪映已登录 VIP）。请退出重开剪映后打开预览并手动导出。本机为 Mac，无法 RPA 自动导出。

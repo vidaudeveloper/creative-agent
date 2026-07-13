@@ -28,6 +28,7 @@ Group **multiple independent generation jobs** into one batch. **Mixed skills al
 - Single task → use the matching L1/L2 skill directly, no batch wrapper
 - Same prompt, N image variants only → **trend-viral-short** + `creative_submit_batch_variants` (one job)
 - User wants instant result, no job list → **creative-direct** sync MCP (not in batch)
+- One product image → N scene clips → Jianying remix (with 15s polling) → **product-image-to-jianying-remix**
 
 ---
 

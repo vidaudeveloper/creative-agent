@@ -26,6 +26,7 @@ Before submitting final render, pick **L1 video skill** from user intent:
 | Emphasis on shot transitions, camera motion, cinematic feel | **creative-script2film-keyframes** | `creative_submit_script2film_keyframes` |
 | Single 5–15s demo clip only, no multi-shot | **creative-direct** | `creative_image_to_video` or `creative_first_frame_to_video` |
 | A/B test multiple hook **images** | **trend-viral-short** | `creative_submit_batch_variants` |
+| One product **image** → multi scene clips → Jianying remix | **product-image-to-jianying-remix** | `creative_submit_workflow` ×N + jianying-remix |
 
 **Decision shorthand**:
 - Has product hero, must "look like this SKU" → **reference** (creative-script2film)

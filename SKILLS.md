@@ -18,6 +18,10 @@ pnpm skills:install
 2. **Prompt skills** (required before generation): `creative-seedance2-prompt` (video), `creative-gpt-image2-prompt` (image)
 3. **Skills** (workflows): see [SETUP.md](./docs/SETUP.md)
 
+### End-to-end: product image → Jianying film
+
+Use L2 skill **`product-image-to-jianying-remix`**: upload one product image → async `creative_submit_workflow` ×5 (`direct_video`, 4s scenes) → poll every 15s → **jianying-remix**.
+
 ## Maintenance
 
 ```bash

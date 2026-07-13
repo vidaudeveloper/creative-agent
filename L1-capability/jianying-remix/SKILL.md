@@ -185,8 +185,10 @@ jy-compile import "<draft_dir>" --name "<短横线英文名>"
 3. 执行：
 
 ```bat
-jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --resolution 1080P --timeout 600
+jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --resolution 1080P --timeout 600 --profile v10
 ```
+
+> 剪映 **10.9** 用 `--profile v10`；老版本用 `--profile legacy`；不确定可用 `auto`。
 
 4. 成功则交付 `output_mp4` 路径；失败则展示 error，并引导手动导出  
 

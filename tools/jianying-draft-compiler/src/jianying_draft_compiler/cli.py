@@ -77,6 +77,12 @@ def main(argv: list[str] | None = None) -> int:
     p_export.add_argument("--resolution", type=str, default="1080P", help="e.g. 1080P / 720P")
     p_export.add_argument("--framerate", type=str, default=None, help="e.g. 30fps")
     p_export.add_argument("--timeout", type=float, default=600)
+    p_export.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="UIA profile: auto | legacy | v10 (10.9). Env JY_UIA_PROFILE also works.",
+    )
 
     p_check = sub.add_parser("export-check", help="Check whether Windows auto-export is available")
 
@@ -162,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
                 resolution=args.resolution,
                 framerate=args.framerate,
                 timeout=args.timeout,
+                uia_profile=args.profile,
             )
         except Exception as e:
             print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False, indent=2))

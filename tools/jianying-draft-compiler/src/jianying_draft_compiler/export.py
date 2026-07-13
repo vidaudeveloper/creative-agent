@@ -65,6 +65,7 @@ def export_draft_to_mp4(
     resolution: str | None = "1080P",
     framerate: str | None = None,
     timeout: float = 600,
+    uia_profile: str | None = None,
 ) -> dict:
     """
     Windows-only: drive Jianying UI to export an already-imported draft.
@@ -73,6 +74,9 @@ def export_draft_to_mp4(
     - Draft folder exists at ``{jy_root}/{draft_name}/``
     - JianyingPro is running and on the home page
     - Windows extras installed
+
+    uia_profile: ``auto`` | ``legacy`` | ``v10`` (or env ``JY_UIA_PROFILE``).
+    Use ``v10`` for Jianying 10.9 Chinese Pro.
     """
     ok, reason = export_supported()
     if not ok:
@@ -93,10 +97,13 @@ def export_draft_to_mp4(
     ensure_engine_on_path()
     import pyJianYingDraft as draft
     from pyJianYingDraft.jianying_controller import ExportFramerate, ExportResolution
+    from pyJianYingDraft.jianying_uia import resolve_profile
     from uiautomation import UIAutomationInitializerInThread
 
     if draft.JianyingController is None:
         raise RuntimeError("JianyingController 不可用（非 Windows 或缺少依赖）")
+
+    profile = resolve_profile(uia_profile)
 
     res_enum = None
     if resolution:
@@ -121,7 +128,7 @@ def export_draft_to_mp4(
             raise ValueError(f"unknown framerate: {framerate}")
 
     with UIAutomationInitializerInThread():
-        ctrl = draft.JianyingController()
+        ctrl = draft.JianyingController(profile=profile)
         ctrl.export_draft(
             draft_name,
             str(outfile),
@@ -141,4 +148,5 @@ def export_draft_to_mp4(
         "output_mp4": str(outfile),
         "size_bytes": outfile.stat().st_size,
         "platform": "win32",
+        "uia_profile": profile,
     }

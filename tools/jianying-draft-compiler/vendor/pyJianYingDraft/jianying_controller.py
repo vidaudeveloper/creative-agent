@@ -37,6 +37,7 @@ from typing import Optional, Literal, Callable
 
 from . import exceptions
 from .exceptions import AutomationError
+from .jianying_uia import V10, UiaProfile, resolve_profile
 
 # 添加logger导入（standalone：无 capcut-mate src.utils）
 try:
@@ -118,6 +119,24 @@ class ControlFinder:
             return (class_name == curr_class_name) if exact else (class_name in curr_class_name)
         return matcher
 
+    @staticmethod
+    def name_matcher(target_name: str, *, exact: bool = True, depth: int | None = None) -> Callable[[uia.Control, int], bool]:
+        """根据可见 Name（10.9 中文按钮）查找控件。"""
+        target = target_name.strip()
+
+        def matcher(control: uia.Control, _depth: int) -> bool:
+            if depth is not None and _depth != depth:
+                return False
+            try:
+                name = (control.Name or "").strip()
+            except Exception:
+                return False
+            if exact:
+                return name == target
+            return target in name
+
+        return matcher
+
 class JianyingController:
     """剪映控制器"""
 
@@ -130,9 +149,18 @@ class JianyingController:
     app_status: Literal["home", "edit", "pre_export"]
     """当app_status为pre_export时，app_sub_status表示导出过程中的子状态"""
     app_sub_status: Literal["none", "export_start", "exporting", "export_succeed"]
+    uia_profile: UiaProfile
+    """auto / legacy(≤6) / v10(10.9+)"""
 
-    def __init__(self):
-        """初始化剪映控制器, 此时剪映应该处于目录页"""
+    def __init__(self, profile: str | None = None):
+        """初始化剪映控制器, 此时剪映应该处于目录页
+
+        Args:
+            profile: UIA 配置。`auto`（默认）先试 ≤6 AutomationId，再回退 10.9 中文 Name；
+                也可设 `legacy` / `v10`，或环境变量 `JY_UIA_PROFILE`。
+        """
+        self.uia_profile = resolve_profile(profile)
+        logger.info("JianyingController uia_profile=%s", self.uia_profile)
         self.get_window()
 
     def _safe_click(
@@ -257,6 +285,67 @@ class JianyingController:
             raise last_exc
         return False
 
+    def _use_legacy(self) -> bool:
+        return self.uia_profile == "legacy"
+
+    def _use_v10(self) -> bool:
+        return self.uia_profile == "v10"
+
+    def _allow_legacy(self) -> bool:
+        return self.uia_profile in ("auto", "legacy")
+
+    def _allow_v10(self) -> bool:
+        return self.uia_profile in ("auto", "v10")
+
+    def _find_by_name(
+        self,
+        name: str,
+        *,
+        exact: bool = True,
+        search_depth: int = 8,
+        control_type: str = "TextControl",
+        root: uia.Control | None = None,
+    ) -> Optional[uia.Control]:
+        """按可见 Name 查找（10.9）。优先 Text，再试 Button。"""
+        root = root or self.app
+        matcher = ControlFinder.name_matcher(name, exact=exact)
+        type_order = (
+            ("TextControl", root.TextControl),
+            ("ButtonControl", root.ButtonControl),
+            ("GroupControl", root.GroupControl),
+        )
+        # Prefer requested type first
+        ordered = [t for t in type_order if t[0] == control_type] + [
+            t for t in type_order if t[0] != control_type
+        ]
+        for _, factory in ordered:
+            ctrl = factory(searchDepth=search_depth, Compare=matcher)
+            try:
+                if ctrl.Exists(0.3, 0.1):
+                    return ctrl
+            except Exception as exc:
+                if is_com_uia_error(exc):
+                    continue
+                raise
+        return None
+
+    def _dismiss_got_it_tips(self) -> None:
+        """关掉 10.9 新手黄气泡「知道了」。"""
+        if not self._allow_v10():
+            return
+        for _ in range(3):
+            tip = self._find_by_name(V10["got_it"], exact=True, search_depth=10)
+            if tip is None:
+                return
+            logger.info("Dismissing tutorial tip: %s", V10["got_it"])
+            try:
+                tip.Click(simulateMove=False)
+            except Exception as exc:
+                logger.warning("Failed to dismiss tip: %r", exc)
+                return
+            time.sleep(0.8)
+            self.get_window()
+
     def _make_export_succeed_close_btn(self, *, from_export_window: bool = False) -> uia.Control:
         root = self.app
         if from_export_window:
@@ -268,21 +357,39 @@ class JianyingController:
 
     def _find_export_succeed_close_btn(self) -> Optional[uia.Control]:
         """在当前窗口或「导出」子窗口中查找导出成功关闭按钮。"""
-        if self._safe_exists(
-            lambda: self._make_export_succeed_close_btn(from_export_window=False),
-            "find_export_succeed_close_btn.main",
-        ):
-            return self._make_export_succeed_close_btn(from_export_window=False)
-
-        if self._safe_exists(
-            lambda: self.app.WindowControl(searchDepth=2, Name="导出"),
-            "find_export_succeed_close_btn.export_window",
-        ):
+        if self._allow_legacy():
             if self._safe_exists(
-                lambda: self._make_export_succeed_close_btn(from_export_window=True),
-                "find_export_succeed_close_btn.in_export_window",
+                lambda: self._make_export_succeed_close_btn(from_export_window=False),
+                "find_export_succeed_close_btn.main",
             ):
-                return self._make_export_succeed_close_btn(from_export_window=True)
+                return self._make_export_succeed_close_btn(from_export_window=False)
+
+            if self._safe_exists(
+                lambda: self.app.WindowControl(searchDepth=2, Name="导出"),
+                "find_export_succeed_close_btn.export_window",
+            ):
+                if self._safe_exists(
+                    lambda: self._make_export_succeed_close_btn(from_export_window=True),
+                    "find_export_succeed_close_btn.in_export_window",
+                ):
+                    return self._make_export_succeed_close_btn(from_export_window=True)
+
+        if self._allow_v10():
+            # 10.9 success dialog: bottom bar button 「关闭」
+            close_btn = self._find_by_name(V10["close_btn"], exact=True, search_depth=10)
+            if close_btn is not None:
+                # Prefer when success title also present (avoid random 关闭)
+                ok_title = self._find_by_name(
+                    V10["export_ok_title"], exact=False, search_depth=10
+                )
+                if ok_title is not None or self.app_sub_status == "export_succeed":
+                    return close_btn
+                # Still accept 关闭 if 发布/查看草稿 also visible (success layout)
+                if (
+                    self._find_by_name(V10["publish"], exact=True, search_depth=10) is not None
+                    or self._find_by_name(V10["view_draft"], exact=True, search_depth=10) is not None
+                ):
+                    return close_btn
         return None
 
     def _require_export_succeed_close_btn(self) -> uia.Control:
@@ -336,18 +443,40 @@ class JianyingController:
         last_exception = None
         for attempt in range(max_retries):
             try:
-                # 点击对应草稿
-                draft_name_text = self.app.TextControl(
-                    searchDepth=2,
-                    Compare=ControlFinder.desc_matcher(f"HomePageDraftTitle:{draft_name}", exact=True)
-                )
-                if not draft_name_text.Exists(0):
+                clicked = False
+                # ≤6: HomePageDraftTitle:{name}
+                if self._allow_legacy():
+                    draft_name_text = self.app.TextControl(
+                        searchDepth=2,
+                        Compare=ControlFinder.desc_matcher(
+                            f"HomePageDraftTitle:{draft_name}", exact=True
+                        ),
+                    )
+                    if draft_name_text.Exists(0):
+                        draft_btn = draft_name_text.GetParentControl()
+                        assert draft_btn is not None
+                        draft_btn.Click(simulateMove=False)
+                        clicked = True
+                        logger.info("Opened draft via legacy HomePageDraftTitle: %s", draft_name)
+
+                # 10.9: visible Name on local draft card
+                if not clicked and self._allow_v10():
+                    title = self._find_by_name(draft_name, exact=True, search_depth=12)
+                    if title is None:
+                        title = self._find_by_name(draft_name, exact=False, search_depth=12)
+                    if title is None:
+                        raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
+                    target = title.GetParentControl() or title
+                    target.Click(simulateMove=False)
+                    clicked = True
+                    logger.info("Opened draft via v10 Name match: %s", draft_name)
+
+                if not clicked:
                     raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
-                draft_btn = draft_name_text.GetParentControl()
-                assert draft_btn is not None
-                draft_btn.Click(simulateMove=False)
+
                 time.sleep(10)
                 self.get_window()
+                self._dismiss_got_it_tips()
                 return  # 成功则返回
             except exceptions.DraftNotFound as e:
                 last_exception = e
@@ -376,12 +505,34 @@ class JianyingController:
         Raises:
             AutomationError: 未找到导出按钮
         """
-        export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"))
-        if not export_btn.Exists(0):
-            raise AutomationError("未在编辑窗口中找到导出按钮")
-        export_btn.Click(simulateMove=False)
-        time.sleep(10)
-        self.get_window()
+        self._dismiss_got_it_tips()
+        if self._allow_legacy():
+            export_btn = self.app.TextControl(
+                searchDepth=2,
+                Compare=ControlFinder.desc_matcher("MainWindowTitleBarExportBtn"),
+            )
+            if export_btn.Exists(0):
+                export_btn.Click(simulateMove=False)
+                time.sleep(10)
+                self.get_window()
+                return
+
+        if self._allow_v10():
+            # Top-right teal 「导出」— prefer Button, then Text
+            export_btn = self._find_by_name(
+                V10["export_btn"], exact=True, search_depth=6, control_type="ButtonControl"
+            )
+            if export_btn is None:
+                export_btn = self._find_by_name(
+                    V10["export_btn"], exact=True, search_depth=6, control_type="TextControl"
+                )
+            if export_btn is not None:
+                export_btn.Click(simulateMove=False)
+                time.sleep(10)
+                self.get_window()
+                return
+
+        raise AutomationError("未在编辑窗口中找到导出按钮")
 
     def get_original_export_path(self) -> str:
         """获取原始导出路径
@@ -392,14 +543,45 @@ class JianyingController:
         Raises:
             AutomationError: 未找到导出路径框
         """
-        # 获取原始导出路径（带后缀名）
-        export_path_sib = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportPath"))
-        if not export_path_sib.Exists(0):
-            raise AutomationError("未找到导出路径框")
-        export_path_text = export_path_sib.GetSiblingControl(lambda ctrl: True)
-        assert export_path_text is not None
-        export_path = export_path_text.GetPropertyValue(30159)
-        return export_path
+        if self._allow_legacy():
+            export_path_sib = self.app.TextControl(
+                searchDepth=2, Compare=ControlFinder.desc_matcher("ExportPath")
+            )
+            if export_path_sib.Exists(0):
+                export_path_text = export_path_sib.GetSiblingControl(lambda ctrl: True)
+                assert export_path_text is not None
+                return export_path_text.GetPropertyValue(30159)
+
+        if self._allow_v10():
+            # Best-effort: look for path-like Name under export dialog
+            walk = getattr(uia, "WalkControl", None)
+            if walk is not None:
+                for depth in (6, 10):
+                    try:
+                        for ctrl, _ in walk(self.app, maxDepth=depth):
+                            try:
+                                name = (ctrl.Name or "").strip()
+                            except Exception:
+                                continue
+                            if not name:
+                                continue
+                            if (":/" in name or ":\\" in name) and (
+                                "Video" in name
+                                or "视频" in name
+                                or name.lower().endswith((".mp4", ".mov"))
+                                or "Users" in name
+                            ):
+                                logger.info("v10 export path candidate: %s", name)
+                                return name
+                    except Exception as exc:
+                        logger.warning("WalkControl for export path failed: %r", exc)
+                        break
+            home = os.path.expanduser("~")
+            guess = os.path.join(home, "Videos")
+            logger.warning("v10: could not read export path from UI, guess %s", guess)
+            return guess
+
+        raise AutomationError("未找到导出路径框")
 
     def set_export_resolution(self, resolution: Optional[ExportResolution]) -> None:
         """设置导出分辨率
@@ -410,23 +592,63 @@ class JianyingController:
         Raises:
             AutomationError: 未找到相关控件
         """
-        if resolution is not None:
-            setting_group = self.app.GroupControl(searchDepth=1,
-                                          Compare=ControlFinder.class_name_matcher("PanelSettingsGroup_QMLTYPE"))
-            if not setting_group.Exists(0):
-                raise AutomationError("未找到导出设置组")
-            resolution_btn = setting_group.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportSharpnessInput"))
-            if not resolution_btn.Exists(0.5):
-                raise AutomationError("未找到导出分辨率下拉框")
-            resolution_btn.Click(simulateMove=False)
-            time.sleep(0.5)
-            resolution_item = self.app.TextControl(
-                searchDepth=2, Compare=ControlFinder.desc_matcher(resolution.value)
+        if resolution is None:
+            return
+
+        if self._allow_legacy():
+            setting_group = self.app.GroupControl(
+                searchDepth=1,
+                Compare=ControlFinder.class_name_matcher("PanelSettingsGroup_QMLTYPE"),
             )
-            if not resolution_item.Exists(0.5):
-                raise AutomationError(f"未找到{resolution.value}分辨率选项")
-            resolution_item.Click(simulateMove=False)
-            time.sleep(0.5)
+            if setting_group.Exists(0):
+                resolution_btn = setting_group.TextControl(
+                    searchDepth=2, Compare=ControlFinder.desc_matcher("ExportSharpnessInput")
+                )
+                if resolution_btn.Exists(0.5):
+                    resolution_btn.Click(simulateMove=False)
+                    time.sleep(0.5)
+                    resolution_item = self.app.TextControl(
+                        searchDepth=2, Compare=ControlFinder.desc_matcher(resolution.value)
+                    )
+                    if resolution_item.Exists(0.5):
+                        resolution_item.Click(simulateMove=False)
+                        time.sleep(0.5)
+                        return
+                    raise AutomationError(f"未找到{resolution.value}分辨率选项")
+                if self._use_legacy():
+                    raise AutomationError("未找到导出分辨率下拉框")
+            elif self._use_legacy():
+                raise AutomationError("未找到导出设置组")
+
+        if self._allow_v10():
+            # 10.9 default 「原始」is fine for most drafts; try click 分辨率 row then option
+            logger.info(
+                "v10: attempting resolution=%s (UI may show 原始 / 1080P variants)",
+                resolution.value,
+            )
+            for label in (resolution.value, resolution.value.replace("P", "p"), "1080P", "1080"):
+                item = self._find_by_name(label, exact=True, search_depth=10)
+                if item is None:
+                    item = self._find_by_name(label, exact=False, search_depth=10)
+                if item is not None:
+                    # May need to open dropdown first — click 「分辨率」 nearby then item
+                    res_label = self._find_by_name("分辨率", exact=True, search_depth=10)
+                    if res_label is not None:
+                        try:
+                            res_label.Click(simulateMove=False)
+                            time.sleep(0.4)
+                        except Exception:
+                            pass
+                    item.Click(simulateMove=False)
+                    time.sleep(0.5)
+                    return
+            logger.warning(
+                "v10: could not set resolution %s; leaving UI default (often 原始)",
+                resolution.value,
+            )
+            return
+
+        raise AutomationError("未找到导出分辨率控件")
 
     def set_export_framerate(self, framerate: Optional[ExportFramerate]) -> None:
         """设置导出帧率
@@ -437,23 +659,56 @@ class JianyingController:
         Raises:
             AutomationError: 未找到相关控件
         """
-        if framerate is not None:
-            setting_group = self.app.GroupControl(searchDepth=1,
-                                          Compare=ControlFinder.class_name_matcher("PanelSettingsGroup_QMLTYPE"))
-            if not setting_group.Exists(0):
-                raise AutomationError("未找到导出设置组")
-            framerate_btn = setting_group.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("FrameRateInput"))
-            if not framerate_btn.Exists(0.5):
-                raise AutomationError("未找到导出帧率下拉框")
-            framerate_btn.Click(simulateMove=False)
-            time.sleep(0.5)
-            framerate_item = self.app.TextControl(
-                searchDepth=2, Compare=ControlFinder.desc_matcher(framerate.value)
+        if framerate is None:
+            return
+
+        if self._allow_legacy():
+            setting_group = self.app.GroupControl(
+                searchDepth=1,
+                Compare=ControlFinder.class_name_matcher("PanelSettingsGroup_QMLTYPE"),
             )
-            if not framerate_item.Exists(0.5):
-                raise AutomationError(f"未找到{framerate.value}帧率选项")
-            framerate_item.Click(simulateMove=False)
-            time.sleep(0.5)
+            if setting_group.Exists(0):
+                framerate_btn = setting_group.TextControl(
+                    searchDepth=2, Compare=ControlFinder.desc_matcher("FrameRateInput")
+                )
+                if framerate_btn.Exists(0.5):
+                    framerate_btn.Click(simulateMove=False)
+                    time.sleep(0.5)
+                    framerate_item = self.app.TextControl(
+                        searchDepth=2, Compare=ControlFinder.desc_matcher(framerate.value)
+                    )
+                    if framerate_item.Exists(0.5):
+                        framerate_item.Click(simulateMove=False)
+                        time.sleep(0.5)
+                        return
+                    raise AutomationError(f"未找到{framerate.value}帧率选项")
+                if self._use_legacy():
+                    raise AutomationError("未找到导出帧率下拉框")
+            elif self._use_legacy():
+                raise AutomationError("未找到导出设置组")
+
+        if self._allow_v10():
+            # 10.9 shows 「30」 not always 「30fps」
+            digits = "".join(ch for ch in framerate.value if ch.isdigit())
+            for label in (framerate.value, digits, f"{digits}fps", f"{digits} fps"):
+                if not label:
+                    continue
+                item = self._find_by_name(label, exact=True, search_depth=10)
+                if item is not None:
+                    fps_label = self._find_by_name("帧率", exact=True, search_depth=10)
+                    if fps_label is not None:
+                        try:
+                            fps_label.Click(simulateMove=False)
+                            time.sleep(0.4)
+                        except Exception:
+                            pass
+                    item.Click(simulateMove=False)
+                    time.sleep(0.5)
+                    return
+            logger.warning("v10: could not set framerate %s; leaving default", framerate.value)
+            return
+
+        raise AutomationError("未找到导出帧率控件")
 
     def click_final_export_button(self) -> None:
         """点击导出窗口的最终导出按钮
@@ -461,11 +716,45 @@ class JianyingController:
         Raises:
             AutomationError: 未找到导出按钮
         """
-        export_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True))
-        if not export_btn.Exists(0):
-            raise AutomationError("未在导出窗口中找到导出按钮")
-        export_btn.Click(simulateMove=False)
-        time.sleep(5)
+        if self._allow_legacy():
+            export_btn = self.app.TextControl(
+                searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True)
+            )
+            if export_btn.Exists(0):
+                export_btn.Click(simulateMove=False)
+                time.sleep(5)
+                return
+
+        if self._allow_v10():
+            # Dialog bottom teal 「导出」— also 「取消」 visible; avoid top-bar 导出
+            # Prefer button that coexists with 「取消」
+            cancel = self._find_by_name(V10["cancel_btn"], exact=True, search_depth=10)
+            candidates: list[uia.Control] = []
+            for ctype in ("ButtonControl", "TextControl"):
+                btn = self._find_by_name(
+                    V10["export_btn"], exact=True, search_depth=10, control_type=ctype
+                )
+                if btn is not None:
+                    candidates.append(btn)
+            if candidates:
+                # If multiple, pick the one with largest Y (bottom of dialog)
+                def _top(ctrl: uia.Control) -> int:
+                    try:
+                        return int(ctrl.BoundingRectangle.top)
+                    except Exception:
+                        return 0
+
+                export_btn = max(candidates, key=_top)
+                logger.info(
+                    "v10 final export click (y=%s), cancel_present=%s",
+                    _top(export_btn),
+                    cancel is not None,
+                )
+                export_btn.Click(simulateMove=False)
+                time.sleep(5)
+                return
+
+        raise AutomationError("未在导出窗口中找到导出按钮")
 
     def __ensure_window_focus(self) -> None:
         """在点击前确保窗口有焦点"""
@@ -545,15 +834,37 @@ class JianyingController:
             output_path (Optional[str]): 目标输出路径，如果为None则不移动
         """
         logger.info(f"move {original_path} to {output_path}")
-        if output_path is not None:
-            shutil.move(original_path, output_path)
+        if output_path is None:
+            return
+        src = original_path
+        if src and os.path.isdir(src):
+            # v10 path read may only get folder — pick newest media file
+            candidates = []
+            for name in os.listdir(src):
+                lower = name.lower()
+                if lower.endswith((".mp4", ".mov", ".mkv")):
+                    full = os.path.join(src, name)
+                    try:
+                        candidates.append((os.path.getmtime(full), full))
+                    except OSError:
+                        continue
+            if candidates:
+                candidates.sort(reverse=True)
+                src = candidates[0][1]
+                logger.info("Resolved export file from folder: %s", src)
+        if not src or not os.path.isfile(src):
+            raise AutomationError(f"导出文件不存在: {original_path}")
+        shutil.move(src, output_path)
 
     def export_draft(self, draft_name: str, output_path: Optional[str] = None, *,
                      resolution: Optional[ExportResolution] = None,
                      framerate: Optional[ExportFramerate] = None,
                      timeout: float = 300,
                      draft_dir: Optional[str] = None) -> None:
-        """导出指定的剪映草稿, **目前仅支持剪映6及以下版本**
+        """导出指定的剪映草稿。
+
+        支持 ``uia_profile``: ``legacy``（剪映 ≤6 AutomationId）、``v10``（10.9 中文 Name）、
+        ``auto``（默认，先 legacy 再 v10 回退）。10.9 需实机验证。
 
         **注意: 需要确认有导出草稿的权限(不使用VIP功能或已开通VIP), 否则可能陷入死循环**
 
@@ -754,8 +1065,15 @@ class JianyingController:
                 % (max_retries, retry_interval)
             )
 
-        # 寻找可能存在的导出窗口
-        export_window = self.app.WindowControl(searchDepth=1, Name="导出")
+        # 寻找可能存在的导出窗口（≤6 Name=导出；10.9 Name=导出-草稿名）
+        def _is_export_window(control: uia.Control, _depth: int) -> bool:
+            try:
+                name = (control.Name or "").strip()
+            except Exception:
+                return False
+            return name == "导出" or name.startswith("导出-") or name.startswith("导出 ")
+
+        export_window = self.app.WindowControl(searchDepth=1, Compare=_is_export_window)
         if self._exists_with_com_retry(
             export_window,
             "get_window.find_export",
@@ -778,12 +1096,33 @@ class JianyingController:
         if self.app_status == "pre_export":
             # 0. 初始化默认值为导出中
             self.app_sub_status = "exporting"
-            
+
             # 1. 检查窗口是否停留在导出开始页面
-            export_ok_btn = self.app.TextControl(searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True))
-            if export_ok_btn.Exists(0):
-                self.app_sub_status = "export_start"
-                return
+            if self._allow_legacy():
+                export_ok_btn = self.app.TextControl(
+                    searchDepth=2, Compare=ControlFinder.desc_matcher("ExportOkBtn", exact=True)
+                )
+                if export_ok_btn.Exists(0):
+                    self.app_sub_status = "export_start"
+                    return
+
+            if self._allow_v10():
+                # Start page: 「导出」+「取消」; exporting: 「取消导出」+「正在导出」
+                if self._find_by_name(V10["cancel_export_btn"], exact=True, search_depth=10) is not None:
+                    self.app_sub_status = "exporting"
+                    return
+                if self._find_by_name(V10["exporting"], exact=False, search_depth=10) is not None:
+                    self.app_sub_status = "exporting"
+                    return
+                if self._find_by_name(V10["export_ok_title"], exact=False, search_depth=10) is not None:
+                    self.app_sub_status = "export_succeed"
+                    return
+                if (
+                    self._find_by_name(V10["cancel_btn"], exact=True, search_depth=10) is not None
+                    and self._find_by_name(V10["export_btn"], exact=True, search_depth=10) is not None
+                ):
+                    self.app_sub_status = "export_start"
+                    return
 
             # 2. 检查窗口是否停留在导出完成页面
             if self._safe_exists(
@@ -791,6 +1130,9 @@ class JianyingController:
                 "init_export_sub_status.export_succeed",
                 timeout=0,
             ):
+                self.app_sub_status = "export_succeed"
+                return
+            if self._allow_v10() and self._find_export_succeed_close_btn() is not None:
                 self.app_sub_status = "export_succeed"
                 return
         else:

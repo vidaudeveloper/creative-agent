@@ -45,3 +45,25 @@ pnpm skills:build
 | `creative_list_jobs` | List jobs |
 | `creative_cancel_job` | Cancel job |
 | `creative_list_models` | List models |
+
+## Local tools (jianying-remix)
+
+**Git source (same skill repo):** `https://github.com/vidaudeveloper/creative-agent` → `tools/jianying-draft-compiler/`
+
+Installed automatically by `scripts/install-skills.mjs` (see [docs/SETUP.md](./docs/SETUP.md)). Manual:
+
+```bash
+bash tools/install-jy-compile.sh
+export PATH="$HOME/.vidau/bin:$PATH"
+```
+
+| CLI | Description |
+|-----|-------------|
+| `jy-compile where` | Detect Jianying draft root |
+| `jy-compile validate` | Validate Edit Plan JSON |
+| `jy-compile compile` | Edit Plan → draft folder + zip |
+| `jy-compile import` | Copy draft into Jianying + rewrite media paths |
+| `jy-compile export-check` | Whether Windows RPA export is available |
+| `jy-compile export` | Windows only: export imported draft → MP4 via Jianying UI |
+
+Install details: `L1-capability/jianying-remix/references/install-compiler.md`.

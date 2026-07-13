@@ -8,14 +8,19 @@
  * Remote mode (--remote): install via GitHub identifier (Contents API).
  * From-GitHub mode (--from-github): fetch _manifest.yaml via GitHub API (no clone, no raw CDN).
  *
+ * After skills install, also installs the local Jianying draft compiler
+ * (`tools/jianying-draft-compiler` → `jy-compile`) unless `--skip-compiler`.
+ *
  * Usage:
  *   pnpm skills:install
  *   node scripts/install-skills.mjs --force
  *   node scripts/install-skills.mjs --remote --force
  *   node scripts/install-skills.mjs --from-github --remote --force
+ *   node scripts/install-skills.mjs --skip-compiler
  */
 import { spawnSync } from "node:child_process";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +36,8 @@ const force = process.argv.includes("--force") || process.env.SKILLS_INSTALL_FOR
 const remote = process.argv.includes("--remote") || process.env.SKILLS_INSTALL_REMOTE === "1";
 const fromGithub =
   process.argv.includes("--from-github") || process.env.SKILLS_INSTALL_FROM_GITHUB === "1";
+const skipCompiler =
+  process.argv.includes("--skip-compiler") || process.env.SKILLS_INSTALL_SKIP_COMPILER === "1";
 const cli = process.env.SKILLS_CLI?.trim() || "hermes";
 const hermesHome = process.env.HERMES_HOME?.trim() || join(homedir(), ".hermes");
 
@@ -90,6 +97,70 @@ function installRemote(skill) {
   return spawnSync(cli, args, { stdio: "inherit", encoding: "utf8" });
 }
 
+/**
+ * Install jy-compile from tools/ in this checkout, or git-clone the skill repo.
+ * Avoids raw.githubusercontent.com (CDN 429).
+ */
+function installCompiler() {
+  const localInstall = join(repoRoot, "tools", "install-jy-compile.sh");
+  const localCompiler = join(
+    repoRoot,
+    "tools",
+    "jianying-draft-compiler",
+    "scripts",
+    "install_local.sh"
+  );
+
+  console.info("\n[skills:install] installing jianying-draft-compiler (jy-compile)…");
+
+  let script = null;
+  if (existsSync(localInstall)) {
+    script = localInstall;
+  } else if (existsSync(localCompiler)) {
+    script = localCompiler;
+  }
+
+  if (script) {
+    const r = spawnSync("bash", [script], {
+      stdio: "inherit",
+      encoding: "utf8",
+      env: { ...process.env },
+    });
+    if (r.status !== 0) {
+      console.error(`[skills:install] compiler install failed (exit ${r.status})`);
+      console.error("  Fix: install uv (https://docs.astral.sh/uv/) then re-run, or:");
+      console.error("  bash tools/install-jy-compile.sh");
+      return false;
+    }
+  } else {
+    // No tools/ in this checkout (e.g. --from-github only fetched manifest) → clone monorepo
+    const branch = process.env.SKILLS_GITHUB_BRANCH ?? process.env.VIDAU_JY_COMPILER_REF ?? "main";
+    const repoUrl = process.env.VIDAU_JY_COMPILER_REPO ?? `https://github.com/${repo}.git`;
+    const cache = join(homedir(), ".vidau", "cache", "creative-agent");
+    console.info(`[skills:install] tools/ missing locally; cloning ${repoUrl} (${branch})…`);
+    const clone = spawnSync(
+      "bash",
+      [
+        "-lc",
+        [
+          `mkdir -p "$(dirname '${cache}')"`,
+          `if [ -d '${cache}/.git' ]; then git -C '${cache}' fetch --depth 1 origin '${branch}' && (git -C '${cache}' checkout -q '${branch}' 2>/dev/null || git -C '${cache}' checkout -q FETCH_HEAD); git -C '${cache}' pull --ff-only origin '${branch}' 2>/dev/null || true;`,
+          `else rm -rf '${cache}' && git clone --depth 1 --branch '${branch}' '${repoUrl}' '${cache}'; fi`,
+          `bash '${cache}/tools/jianying-draft-compiler/scripts/install_local.sh'`,
+        ].join(" "),
+      ],
+      { stdio: "inherit", encoding: "utf8", env: { ...process.env } }
+    );
+    if (clone.status !== 0) {
+      console.error(`[skills:install] compiler install via git failed (exit ${clone.status})`);
+      return false;
+    }
+  }
+
+  console.info('[skills:install] compiler OK — add to shell: export PATH="$HOME/.vidau/bin:$PATH"');
+  return true;
+}
+
 async function main() {
   const skills = fromGithub ? await fetchManifestFromGitHub() : await parseManifest();
   const mode = fromGithub
@@ -127,6 +198,18 @@ async function main() {
     process.exit(1);
   }
   console.info("[skills:install] all skills installed");
+
+  if (!skipCompiler) {
+    const ok = installCompiler();
+    if (!ok) {
+      console.error(
+        "[skills:install] skills are installed, but jy-compile failed — jianying-remix will not work until compiler is fixed."
+      );
+      process.exit(1);
+    }
+  } else {
+    console.info("[skills:install] skipped compiler (--skip-compiler)");
+  }
 }
 
 main().catch((err) => {

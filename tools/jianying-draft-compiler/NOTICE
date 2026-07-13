@@ -1,0 +1,6 @@
+NOTICE
+
+This project vendors `pyJianYingDraft` and draft templates from capcut-mate
+(https://github.com / local checkout). Respect the upstream Apache-2.0 license
+and CapCut/Jianying terms of use. Draft compilation writes resource IDs only;
+rendering happens inside the user's CapCut/Jianying client.

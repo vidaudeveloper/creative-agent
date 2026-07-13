@@ -1,3 +1,5 @@
 node_modules/
 public/
 .DS_Store
+tools/jianying-draft-compiler/.venv/
+tools/jianying-draft-compiler/output/

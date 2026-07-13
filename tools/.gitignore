@@ -1,0 +1,4 @@
+jianying-draft-compiler/output/
+jianying-draft-compiler/.venv/
+jianying-draft-compiler/**/__pycache__/
+jianying-draft-compiler/*.egg-info/

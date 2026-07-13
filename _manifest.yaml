@@ -121,6 +121,14 @@ skills:
       - creative_list_jobs
       - creative_cancel_job
 
+  - id: jianying-remix
+    layer: L1-capability
+    path: L1-capability/jianying-remix
+    title: Jianying / CapCut Local Remix
+    tags: [jianying, capcut, remix, transition, local, draft]
+    requires: []
+    mcp_tools: []
+
   - id: trend-viral-short
     layer: L2-vertical
     path: L2-vertical/trend-viral-short

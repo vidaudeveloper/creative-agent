@@ -10,7 +10,7 @@ async function walk(dir) {
   for (const e of entries) {
     const p = join(dir, e.name);
     if (e.isDirectory()) {
-      if (e.name === "node_modules" || e.name === "public" || e.name === "scripts") continue;
+      if (e.name === "node_modules" || e.name === "public" || e.name === "scripts" || e.name === "tools" || e.name === ".venv") continue;
       files.push(...(await walk(p)));
     } else if (e.name === "SKILL.md") files.push(p);
   }

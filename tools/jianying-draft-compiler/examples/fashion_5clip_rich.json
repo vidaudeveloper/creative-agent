@@ -1,0 +1,49 @@
+{
+  "title": "fashion-5clip-rich",
+  "aspect": "9:16",
+  "clips": [
+    {
+      "path": "/Users/alick/Downloads/raw_videos/raw_1_silk_dress.mp4",
+      "in_ms": 0,
+      "out_ms": 3500
+    },
+    {
+      "path": "/Users/alick/Downloads/raw_videos/raw_2_suit.mp4",
+      "in_ms": 0,
+      "out_ms": 3500
+    },
+    {
+      "path": "/Users/alick/Downloads/raw_videos/raw_3_streetwear.mp4",
+      "in_ms": 0,
+      "out_ms": 3500
+    },
+    {
+      "path": "/Users/alick/Downloads/raw_videos/raw_4_winter_coat.mp4",
+      "in_ms": 0,
+      "out_ms": 3500
+    },
+    {
+      "path": "/Users/alick/Downloads/raw_videos/raw_5_avant_garde.mp4",
+      "in_ms": 0,
+      "out_ms": 3500
+    }
+  ],
+  "junctions": [
+    { "after_clip": 0, "transition": "竖向模糊", "duration_ms": 450 },
+    { "after_clip": 1, "transition": "闪白", "duration_ms": 350 },
+    { "after_clip": 2, "transition": "故障", "duration_ms": 400 },
+    { "after_clip": 3, "transition": "抖动 II", "duration_ms": 400 }
+  ],
+  "overlays": [
+    { "type": "effect", "name": "细闪", "start_ms": 0, "end_ms": 17500 },
+    { "type": "effect", "name": "撕纸涂鸦边框", "start_ms": 0, "end_ms": 3500 },
+    { "type": "effect", "name": "胶片框 III", "start_ms": 3500, "end_ms": 7000 },
+    { "type": "effect", "name": "胶片漏光", "start_ms": 3500, "end_ms": 7000 },
+    { "type": "effect", "name": "镭射边框", "start_ms": 7000, "end_ms": 10500 },
+    { "type": "effect", "name": "胶片抖动", "start_ms": 7000, "end_ms": 10500 },
+    { "type": "effect", "name": "纸质撕边", "start_ms": 10500, "end_ms": 14000 },
+    { "type": "effect", "name": "星光闪闪", "start_ms": 10500, "end_ms": 14000 },
+    { "type": "effect", "name": "录制边框 III", "start_ms": 14000, "end_ms": 17500 },
+    { "type": "effect", "name": "定格闪烁", "start_ms": 14000, "end_ms": 17500 }
+  ]
+}

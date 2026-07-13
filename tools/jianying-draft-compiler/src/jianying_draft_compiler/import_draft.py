@@ -236,6 +236,27 @@ def _strip_quarantine(draft_dir: Path) -> int:
     return cleared
 
 
+def _patch_draft_display_name(draft_dir: Path, draft_name: str) -> None:
+    """Ensure draft_content/draft_info ``name`` matches the folder / import name.
+
+    Empty ``name`` makes Jianying home list / UIA title search fail.
+    """
+    for fname in ("draft_content.json", "draft_info.json"):
+        path = draft_dir / fname
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        if data.get("name") == draft_name:
+            continue
+        data["name"] = draft_name
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=4), encoding="utf-8")
+
+
 def _sync_draft_json_pair(draft_dir: Path) -> None:
     """Keep draft_info.json identical to draft_content.json (plaintext).
 
@@ -290,6 +311,7 @@ def import_draft(
     shutil.copytree(source, dest)
 
     rewritten = _rewrite_material_paths(dest)
+    _patch_draft_display_name(dest, name)
     _sync_draft_json_pair(dest)
     cleared = _strip_quarantine(dest)
     duration_us = _read_duration_us(dest)

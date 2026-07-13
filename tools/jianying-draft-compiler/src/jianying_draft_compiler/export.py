@@ -33,6 +33,18 @@ def export_supported() -> tuple[bool, str]:
     return True, "ok"
 
 
+def vision_export_supported() -> tuple[bool, str]:
+    if not is_windows():
+        return False, "视觉导出仅支持 Windows"
+    try:
+        ensure_engine_on_path()
+        from pyJianYingDraft.jianying_vision import vision_deps_ok
+
+        return vision_deps_ok()
+    except Exception as e:
+        return False, str(e)
+
+
 def _trigger_directory_scan(draft_dir: Path) -> None:
     """Best-effort: robocopy self-copy to nudge Jianying to rescan drafts."""
     if not is_windows() or not draft_dir.is_dir():
@@ -57,6 +69,15 @@ def _trigger_directory_scan(draft_dir: Path) -> None:
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+def resolve_export_driver(explicit: str | None = None) -> str:
+    raw = (explicit or os.environ.get("JY_EXPORT_DRIVER") or "auto").strip().lower()
+    if raw in ("vision", "ocr", "image", "img"):
+        return "vision"
+    if raw in ("uia", "ui", "rpa"):
+        return "uia"
+    return "auto"
+
+
 def export_draft_to_mp4(
     draft_name: str,
     output_mp4: Path | str,
@@ -66,33 +87,97 @@ def export_draft_to_mp4(
     framerate: str | None = None,
     timeout: float = 600,
     uia_profile: str | None = None,
+    driver: str | None = None,
 ) -> dict:
     """
     Windows-only: drive Jianying UI to export an already-imported draft.
 
-    Prerequisites:
-    - Draft folder exists at ``{jy_root}/{draft_name}/``
-    - JianyingPro is running and on the home page
-    - Windows extras installed
-
-    uia_profile: ``auto`` | ``legacy`` | ``v10`` (or env ``JY_UIA_PROFILE``).
-    Use ``v10`` for Jianying 10.9 Chinese Pro.
+    driver: ``auto`` | ``uia`` | ``vision`` (env ``JY_EXPORT_DRIVER``).
+    - uia: UIAutomation (fails when GetChildren=0)
+    - vision: screen OCR + pyautogui click
+    - auto: try uia first; on empty tree / draft-not-found fall back to vision
     """
-    ok, reason = export_supported()
-    if not ok:
-        raise RuntimeError(reason)
-
+    mode = resolve_export_driver(driver)
     root = Path(jy_root).expanduser().resolve() if jy_root else detect_jianying_draft_root()
     draft_dir = root / draft_name
     if not draft_dir.is_dir():
         raise FileNotFoundError(f"草稿目录不存在: {draft_dir}（请先 jy-compile import）")
 
     outfile = Path(output_mp4).expanduser().resolve()
+    _trigger_directory_scan(draft_dir)
+
+    if mode == "vision":
+        return _export_vision(draft_name, outfile, timeout=timeout, draft_dir=draft_dir)
+
+    # uia or auto
+    try:
+        result = _export_uia(
+            draft_name,
+            outfile,
+            draft_dir=draft_dir,
+            resolution=resolution,
+            framerate=framerate,
+            timeout=timeout,
+            uia_profile=uia_profile,
+        )
+        result["driver"] = "uia"
+        return result
+    except Exception as e:
+        if mode != "auto":
+            raise
+        msg = str(e)
+        fallback_markers = (
+            "UIA 控件树为空",
+            "GetChildren",
+            "uia_children=0",
+            "未找到名为",
+            "DraftNotFound",
+            "未找到导出按钮",
+        )
+        if not any(m in msg for m in fallback_markers):
+            raise
+        print(f"UIA export failed ({e}); falling back to vision/OCR…", file=sys.stderr)
+        result = _export_vision(draft_name, outfile, timeout=timeout, draft_dir=draft_dir)
+        result["uia_error"] = msg
+        return result
+
+
+def _export_vision(
+    draft_name: str,
+    outfile: Path,
+    *,
+    timeout: float,
+    draft_dir: Path,
+) -> dict:
+    ok, reason = vision_export_supported()
+    if not ok:
+        raise RuntimeError(f"视觉导出不可用: {reason}")
+    ensure_engine_on_path()
+    from pyJianYingDraft.jianying_vision_export import export_draft_via_vision
+
+    result = export_draft_via_vision(draft_name, outfile, timeout=timeout)
+    result["draft_dir"] = str(draft_dir)
+    result["platform"] = "win32"
+    return result
+
+
+def _export_uia(
+    draft_name: str,
+    outfile: Path,
+    *,
+    draft_dir: Path,
+    resolution: str | None,
+    framerate: str | None,
+    timeout: float,
+    uia_profile: str | None,
+) -> dict:
+    ok, reason = export_supported()
+    if not ok:
+        raise RuntimeError(reason)
+
     outfile.parent.mkdir(parents=True, exist_ok=True)
     if outfile.exists():
         outfile.unlink()
-
-    _trigger_directory_scan(draft_dir)
 
     ensure_engine_on_path()
     import pyJianYingDraft as draft

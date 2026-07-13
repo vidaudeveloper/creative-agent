@@ -97,7 +97,7 @@ if [[ "$(uname -s 2>/dev/null || echo unknown)" == MINGW* ]] \
   || [[ "${OS:-}" == "Windows_NT" ]] \
   || [[ "$(python -c 'import sys; print(sys.platform)' 2>/dev/null || true)" == "win32" ]]; then
   echo "Installing Windows export extras…"
-  uv sync --extra windows || uv pip install pywin32 pyautogui uiautomation || true
+  uv sync --extra windows || uv pip install pywin32 pyautogui uiautomation Pillow numpy rapidocr-onnxruntime || true
 fi
 
 BIN_DIR="$HOME/.vidau/bin"

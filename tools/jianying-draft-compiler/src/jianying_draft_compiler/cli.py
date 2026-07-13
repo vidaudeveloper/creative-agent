@@ -83,6 +83,13 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="UIA profile: auto | legacy | v10 (10.9). Env JY_UIA_PROFILE also works.",
     )
+    p_export.add_argument(
+        "--driver",
+        type=str,
+        default=None,
+        help="Export driver: auto | uia | vision (OCR click). Env JY_EXPORT_DRIVER. "
+        "vision 适合 UIA 控件树为空的剪映 10.9。",
+    )
 
     p_check = sub.add_parser("export-check", help="Check whether Windows auto-export is available")
 
@@ -155,9 +162,23 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "export-check":
+        from .export import vision_export_supported
+
         ok, reason = export_supported()
-        print(json.dumps({"ok": ok, "windows": is_windows(), "reason": reason}, ensure_ascii=False, indent=2))
-        return 0 if ok else 2
+        vok, vreason = vision_export_supported()
+        print(
+            json.dumps(
+                {
+                    "ok": ok or vok,
+                    "windows": is_windows(),
+                    "uia": {"ok": ok, "reason": reason},
+                    "vision": {"ok": vok, "reason": vreason},
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 0 if (ok or vok) else 2
 
     if args.cmd == "export":
         try:
@@ -169,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
                 framerate=args.framerate,
                 timeout=args.timeout,
                 uia_profile=args.profile,
+                driver=args.driver,
             )
         except Exception as e:
             print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False, indent=2))

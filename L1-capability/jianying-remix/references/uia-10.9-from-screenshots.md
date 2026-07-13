@@ -44,5 +44,6 @@
 
 - [ ] 实机：`jy-compile export <草稿名> -o ... --profile v10`
 - [ ] Inspect：核对 AutomationId（若有则可写回 legacy 更稳）
-- [ ] 草稿卡片标题控件是否等于文件夹名
+- [ ] 草稿卡片标题控件是否等于文件夹名；截断时 Name 是全文还是 `…` 显示文案
+- [ ] 首页「本地草稿」列表：GetChildren 是否恒为 0（若是则 RPA 打开草稿不可行，只能手动）
 - [ ] 导出路径控件读取是否稳定（失败时会取 Videos 下最新 mp4）

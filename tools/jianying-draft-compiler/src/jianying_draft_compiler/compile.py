@@ -335,6 +335,10 @@ def compile_edit_plan(
     if plan.bgm is not None and total_ms > 0:
         _add_bgm(script, draft, plan, draft_dir, total_ms, warnings)
 
+    # 草稿显示名：空 name 会导致剪映首页/UIA 按标题搜不到
+    display_name = (plan.title or "").strip() or draft_id
+    script.content["name"] = display_name
+
     script.save()
 
     manifest_path = write_manifest(

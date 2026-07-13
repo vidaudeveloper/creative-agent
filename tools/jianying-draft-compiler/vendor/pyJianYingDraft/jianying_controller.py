@@ -39,15 +39,8 @@ from . import exceptions
 from .exceptions import AutomationError
 from .jianying_uia import V10, UiaProfile, resolve_profile
 
-# 添加logger导入（standalone：无 capcut-mate src.utils）
-try:
-    from src.utils.logger import logger  # type: ignore
-except ImportError:
-    import logging
-
-    logger = logging.getLogger("jianying_controller")
-    if not logger.handlers:
-        logging.basicConfig(level=logging.INFO)
+# standalone：勿依赖 capcut-mate 的 src.utils
+from .win_utils import logger, trigger_directory_scan_with_robocopy
 
 # Windows UI Automation COM 错误（EVENT_E_ALL_SUBSCRIBERS_FAILED）
 COM_UIA_ERROR_HRESULT = -2147220991
@@ -120,6 +113,35 @@ class ControlFinder:
         return matcher
 
     @staticmethod
+    def names_equivalent(ui_name: str, target: str, *, exact: bool = True) -> bool:
+        """匹配可见 Name；兼容 UI 中间省略（mens-ve…mix / mens-ve...mix）。"""
+        ui = (ui_name or "").strip()
+        t = (target or "").strip()
+        if not ui or not t:
+            return False
+        if ui == t:
+            return True
+        if not exact and t in ui:
+            return True
+        for ell in ("...", "…", "⋯"):
+            if ell in ui:
+                left, _, right = ui.partition(ell)
+                if left and t.startswith(left) and (not right or t.endswith(right)):
+                    return True
+        # 末尾省略：mens-vest-re…
+        for ell in ("...", "…", "⋯"):
+            if ui.endswith(ell):
+                prefix = ui[: -len(ell)]
+                if len(prefix) >= 4 and t.startswith(prefix):
+                    return True
+        # UI 比目标短且是前缀（部分自定义控件只暴露截断文案）
+        if len(ui) >= 6 and len(ui) < len(t) and t.startswith(ui):
+            return True
+        if not exact and ui in t and len(ui) >= 6:
+            return True
+        return False
+
+    @staticmethod
     def name_matcher(target_name: str, *, exact: bool = True, depth: int | None = None) -> Callable[[uia.Control, int], bool]:
         """根据可见 Name（10.9 中文按钮）查找控件。"""
         target = target_name.strip()
@@ -131,9 +153,7 @@ class ControlFinder:
                 name = (control.Name or "").strip()
             except Exception:
                 return False
-            if exact:
-                return name == target
-            return target in name
+            return ControlFinder.names_equivalent(name, target, exact=exact)
 
         return matcher
 
@@ -306,13 +326,15 @@ class JianyingController:
         control_type: str = "TextControl",
         root: uia.Control | None = None,
     ) -> Optional[uia.Control]:
-        """按可见 Name 查找（10.9）。优先 Text，再试 Button。"""
+        """按可见 Name 查找（10.9）。优先 Text，再试 Button / ListItem / Custom。"""
         root = root or self.app
         matcher = ControlFinder.name_matcher(name, exact=exact)
         type_order = (
             ("TextControl", root.TextControl),
             ("ButtonControl", root.ButtonControl),
+            ("ListItemControl", root.ListItemControl),
             ("GroupControl", root.GroupControl),
+            ("CustomControl", root.CustomControl),
         )
         # Prefer requested type first
         ordered = [t for t in type_order if t[0] == control_type] + [
@@ -328,6 +350,56 @@ class JianyingController:
                     continue
                 raise
         return None
+
+    def _walk_find_by_name(
+        self,
+        name: str,
+        *,
+        exact: bool = False,
+        max_depth: int = 24,
+        root: uia.Control | None = None,
+    ) -> Optional[uia.Control]:
+        """手动遍历控件树（GetChildren 偶发为空时的兜底）。"""
+        root = root or self.app
+        try:
+            children = root.GetChildren()
+        except Exception as exc:
+            logger.warning("GetChildren failed on root: %r", exc)
+            children = []
+        if not children:
+            logger.warning(
+                "UIA tree empty under Jianying window (GetChildren=0); "
+                "custom-rendered draft cards may be invisible to UIAutomation"
+            )
+            return None
+
+        stack: list[tuple[uia.Control, int]] = [(c, 1) for c in children]
+        while stack:
+            ctrl, depth = stack.pop()
+            try:
+                ctrl_name = (ctrl.Name or "").strip()
+            except Exception:
+                ctrl_name = ""
+            if ctrl_name and ControlFinder.names_equivalent(ctrl_name, name, exact=exact):
+                return ctrl
+            if depth >= max_depth:
+                continue
+            try:
+                kids = ctrl.GetChildren()
+            except Exception:
+                kids = []
+            for kid in kids:
+                stack.append((kid, depth + 1))
+        return None
+
+    def _probe_uia_tree(self) -> int:
+        """返回主窗口直接子控件数量，用于诊断。"""
+        try:
+            kids = self.app.GetChildren()
+            return len(kids or [])
+        except Exception as exc:
+            logger.warning("UIA probe failed: %r", exc)
+            return -1
 
     def _dismiss_got_it_tips(self) -> None:
         """关掉 10.9 新手黄气泡「知道了」。"""
@@ -425,16 +497,16 @@ class JianyingController:
     def find_and_click_draft(
         self,
         draft_name: str,
-        max_retries: int = 6,
-        retry_interval: float = 5.0,
+        max_retries: int = 10,
+        retry_interval: float = 3.0,
         draft_dir: Optional[str] = None,
     ) -> None:
         """查找并点击指定名称的草稿
         
         Args:
             draft_name (str): 要查找的草稿名称
-            max_retries (int): 最大重试次数，默认6次
-            retry_interval (float): 重试间隔时间(秒)，默认5秒
+            max_retries (int): 最大重试次数，默认10次
+            retry_interval (float): 重试间隔时间(秒)，默认3秒
             draft_dir (str, optional): 剪映本地草稿目录；未找到时会触发 robocopy 扫描以刷新列表
             
         Raises:
@@ -444,6 +516,30 @@ class JianyingController:
         for attempt in range(max_retries):
             try:
                 clicked = False
+                child_count = self._probe_uia_tree()
+                logger.info(
+                    "find_and_click_draft attempt %d/%d name=%s uia_children=%s",
+                    attempt + 1,
+                    max_retries,
+                    draft_name,
+                    child_count,
+                )
+                if child_count == 0:
+                    # 控件树空：重新激活窗口后再探一次
+                    try:
+                        self.app.SetActive()
+                        self.app.SetTopmost()
+                    except Exception:
+                        pass
+                    time.sleep(1.5)
+                    self.get_window()
+                    child_count = self._probe_uia_tree()
+                    if child_count == 0:
+                        raise exceptions.DraftNotFound(
+                            f"UIA 控件树为空，无法搜索草稿 {draft_name}；"
+                            "请确认剪映在前台首页，或改用手动打开草稿后导出"
+                        )
+
                 # ≤6: HomePageDraftTitle:{name}
                 if self._allow_legacy():
                     draft_name_text = self.app.TextControl(
@@ -459,17 +555,23 @@ class JianyingController:
                         clicked = True
                         logger.info("Opened draft via legacy HomePageDraftTitle: %s", draft_name)
 
-                # 10.9: visible Name on local draft card
+                # 10.9: visible Name on local draft card（含截断省略匹配）
                 if not clicked and self._allow_v10():
-                    title = self._find_by_name(draft_name, exact=True, search_depth=12)
+                    title = self._find_by_name(draft_name, exact=True, search_depth=20)
                     if title is None:
-                        title = self._find_by_name(draft_name, exact=False, search_depth=12)
+                        title = self._find_by_name(draft_name, exact=False, search_depth=20)
+                    if title is None:
+                        title = self._walk_find_by_name(draft_name, exact=False, max_depth=24)
                     if title is None:
                         raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
                     target = title.GetParentControl() or title
                     target.Click(simulateMove=False)
                     clicked = True
-                    logger.info("Opened draft via v10 Name match: %s", draft_name)
+                    logger.info(
+                        "Opened draft via v10 Name match: %s (ui=%r)",
+                        draft_name,
+                        getattr(title, "Name", ""),
+                    )
 
                 if not clicked:
                     raise exceptions.DraftNotFound(f"未找到名为{draft_name}的剪映草稿")
@@ -482,19 +584,20 @@ class JianyingController:
                 last_exception = e
                 if attempt < max_retries - 1:
                     logger.info(
-                        "Draft not found (name=%s), retry %d/%d",
+                        "Draft not found (name=%s), retry %d/%d: %s",
                         draft_name,
                         attempt + 1,
                         max_retries,
+                        e,
                     )
                     if draft_dir and os.path.isdir(draft_dir):
-                        from src.utils.draft_downloader import trigger_directory_scan_with_robocopy
                         logger.info(
                             "Triggering robocopy directory scan before retry: %s",
                             draft_dir,
                         )
                         trigger_directory_scan_with_robocopy(draft_dir)
                     time.sleep(retry_interval)
+                    self.get_window()
         
         # 所有重试都失败，抛出异常
         raise last_exception

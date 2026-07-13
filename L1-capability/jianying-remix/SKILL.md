@@ -51,6 +51,7 @@ jy-compile where
 
 Compiler 来源与安装：同仓 `tools/jianying-draft-compiler/`，见 [references/install-compiler.md](references/install-compiler.md)。  
 Windows 导出能力：`jy-compile export-check` + [references/windows-export.md](references/windows-export.md)。
+剪映 10.9 若 UIA 空树，用 `--driver vision`（屏幕 OCR 点击）。
 
 ## 工作流
 
@@ -185,8 +186,10 @@ jy-compile import "<draft_dir>" --name "<短横线英文名>"
 3. 执行：
 
 ```bat
-jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --resolution 1080P --timeout 600 --profile v10
+jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --driver vision --timeout 600
 ```
+
+或 `--driver auto`（先 UIA 再 OCR）。10.9 UIA 可用时也可加 `--profile v10`。
 
 > 剪映 **10.9** 用 `--profile v10`；老版本用 `--profile legacy`；不确定可用 `auto`。
 
@@ -205,7 +208,8 @@ jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --resoluti
 | `where` 失败 | 装剪映或设 `JIANYING_DRAFT_ROOT` |
 | 链接媒体 / 暂无访问权限 | 必须用 `import`（路径改写） |
 | `export-check` 失败 | 装 windows extras；确认在 Windows |
-| `export` 找不到草稿 | 剪映回首页；草稿名=文件夹名；robocopy/重启剪映 |
+| `export` 找不到草稿 | 剪映回首页；草稿名=文件夹名；确认 `draft_info.name` 非空；robocopy/重启剪映 |
+| `export` 日志 `uia_children=0` | 改 `--driver vision`；或 `--driver auto` 自动回退 |
 | `export` 超时 / 找不到按钮 | 版本 UI 不兼容或 VIP 弹窗；改手动导出 |
 | VIP 特效无法应用 / 弹窗 | 确认是否有剪映 VIP；无则换免费 preset 并重编；有则请用户登录 VIP 后重开剪映 |
 | 贴纸图打不开 | 检查 path/url；改 PNG；或去掉 sticker overlay |

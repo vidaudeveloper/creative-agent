@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from .catalog import list_effects, list_transitions
+from .catalog import list_effects, list_text_intros, list_text_outros, list_transitions
 from .compile import compile_edit_plan
 from .models import CompileResult, EditPlan
 
@@ -33,6 +33,24 @@ def catalog_transitions() -> list[CatalogItem]:
 @app.get("/catalog/effects", response_model=list[CatalogItem])
 def catalog_effects(q: str | None = None) -> list[CatalogItem]:
     items = list_effects()
+    if q:
+        items = [i for i in items if q in i.name]
+    return [CatalogItem(name=i.name, kind=i.kind, is_vip=i.is_vip) for i in items]
+
+
+@app.get("/catalog/text-animations", response_model=list[CatalogItem])
+def catalog_text_animations(
+    kind: str = "all",
+    q: str | None = None,
+    free: bool = False,
+) -> list[CatalogItem]:
+    items = []
+    if kind in ("intro", "all"):
+        items.extend(list_text_intros())
+    if kind in ("outro", "all"):
+        items.extend(list_text_outros())
+    if free:
+        items = [i for i in items if not i.is_vip]
     if q:
         items = [i for i in items if q in i.name]
     return [CatalogItem(name=i.name, kind=i.kind, is_vip=i.is_vip) for i in items]

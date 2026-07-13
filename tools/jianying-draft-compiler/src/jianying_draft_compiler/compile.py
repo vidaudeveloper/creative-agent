@@ -6,11 +6,12 @@ import shutil
 import uuid
 from pathlib import Path
 
-from .catalog import resolve_effect, resolve_transition
+from .catalog import resolve_effect, resolve_text_intro, resolve_text_outro, resolve_transition
 from .media import ensure_local_media, ms_to_us, us_to_ms
 from .models import CompileResult, EditPlan
 from .package import write_manifest, zip_draft_dir
 from .paths import DEFAULT_OUTPUT_DIR, TEMPLATE_DIR, ensure_engine_on_path
+from .text_style import build_keyword_styles, parse_color
 
 
 def _new_draft_id() -> str:
@@ -40,6 +41,78 @@ def _create_script(draft_dir: Path, width: int, height: int):
     return script
 
 
+def _add_bgm(script, draft, plan, draft_dir: Path, total_ms: int, warnings: list[str]) -> None:
+    """Place BGM on an audio track; optionally loop to cover the timeline span."""
+    from pyJianYingDraft import Timerange
+
+    bgm = plan.bgm
+    assert bgm is not None
+
+    audio_dir = draft_dir / "assets" / "audio"
+    try:
+        local = ensure_local_media(bgm.path, bgm.url, audio_dir)
+        material = draft.AudioMaterial(str(local))
+    except Exception as e:
+        warnings.append(f"bgm skipped: {e}")
+        return
+
+    source_in_us = ms_to_us(bgm.in_ms)
+    source_out_us = ms_to_us(bgm.out_ms) if bgm.out_ms is not None else material.duration
+    source_out_us = min(source_out_us, material.duration)
+    if source_in_us >= source_out_us:
+        warnings.append("bgm skipped: empty trim range")
+        return
+    usable_us = source_out_us - source_in_us
+
+    tl_start_ms = min(bgm.start_ms, total_ms)
+    tl_end_ms = min(bgm.end_ms if bgm.end_ms is not None else total_ms, total_ms)
+    if tl_end_ms <= tl_start_ms:
+        warnings.append("bgm skipped: empty timeline range after clamp")
+        return
+
+    need_us = ms_to_us(tl_end_ms - tl_start_ms)
+    track = "audio_track_bgm"
+    script.add_track_ordered(track_type=draft.TrackType.audio, track_name=track)
+
+    cursor_us = ms_to_us(tl_start_ms)
+    remaining_us = need_us
+    chunk_i = 0
+    while remaining_us > 0:
+        take_us = min(usable_us, remaining_us)
+        if take_us <= 0:
+            break
+        seg = draft.AudioSegment(
+            material=material,
+            target_timerange=Timerange(start=cursor_us, duration=take_us),
+            source_timerange=Timerange(start=source_in_us, duration=take_us),
+            speed=1.0,
+            volume=bgm.volume,
+        )
+        # Fade only on first / last chunk of the BGM span
+        fade_in = ms_to_us(bgm.fade_in_ms) if chunk_i == 0 and bgm.fade_in_ms > 0 else 0
+        fade_out = (
+            ms_to_us(bgm.fade_out_ms)
+            if remaining_us <= usable_us and bgm.fade_out_ms > 0
+            else 0
+        )
+        if fade_in or fade_out:
+            # clamp fades to segment length
+            fade_in = min(fade_in, take_us)
+            fade_out = min(fade_out, max(0, take_us - fade_in))
+            if fade_in or fade_out:
+                seg.add_fade(fade_in, fade_out)
+        script.add_segment(seg, track)
+        cursor_us += take_us
+        remaining_us -= take_us
+        chunk_i += 1
+        if not bgm.loop:
+            if remaining_us > 0:
+                warnings.append(
+                    f"bgm shorter than timeline by {us_to_ms(remaining_us)}ms (loop=false); left silent"
+                )
+            break
+
+
 def compile_edit_plan(
     plan: EditPlan,
     *,
@@ -60,6 +133,13 @@ def compile_edit_plan(
 
     warnings: list[str] = []
     script = _create_script(draft_dir, width, height)
+
+    # BGM 在场时默认静音原片；显式 mute_original_audio=false 可保留原声混音
+    mute_clips = (
+        plan.mute_original_audio
+        if plan.mute_original_audio is not None
+        else plan.bgm is not None
+    )
 
     video_dir = draft_dir / "assets" / "videos"
     video_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +173,7 @@ def compile_edit_plan(
             target_timerange=trange(start=cursor_us, duration=source_dur_us),
             source_timerange=trange(start=source_in_us, duration=source_dur_us),
             speed=1.0,
-            volume=1.0,
+            volume=0.0 if mute_clips else 1.0,
             clip_settings=draft.ClipSettings(),
         )
 
@@ -163,13 +243,54 @@ def compile_edit_plan(
             text_track = f"text_track_{text_idx}"
             text_idx += 1
             script.add_track_ordered(track_type=draft.TrackType.text, track_name=text_track)
+            content = overlay.text or ""
             seg = TextSegment(
-                overlay.text or "",
+                content,
                 tr,
                 style=style,
                 clip_settings=clip_settings,
                 border=border,
             )
+            if overlay.keywords:
+                try:
+                    kw_rgb = parse_color(overlay.keyword_color)
+                except ValueError as e:
+                    warnings.append(f"text keyword_color: {e}")
+                    kw_rgb = (1.0, 0.443, 0.0)
+                styles = build_keyword_styles(
+                    content,
+                    overlay.keywords,
+                    font_size=overlay.font_size,
+                    color=rgb,  # type: ignore[arg-type]
+                    keyword_color=kw_rgb,
+                    keyword_font_size=overlay.keyword_font_size,
+                )
+                if styles:
+                    seg.extra_styles = styles
+                else:
+                    warnings.append(f"keywords not found in text: {overlay.keywords!r}")
+            if overlay.intro:
+                try:
+                    intro = resolve_text_intro(overlay.intro)
+                    dur = (
+                        ms_to_us(overlay.intro_duration_ms)
+                        if overlay.intro_duration_ms is not None
+                        else None
+                    )
+                    seg.add_animation(intro, duration=dur)
+                except (KeyError, ValueError) as e:
+                    warnings.append(f"text intro: {e}")
+            if overlay.outro:
+                try:
+                    outro = resolve_text_outro(overlay.outro)
+                    dur = (
+                        ms_to_us(overlay.outro_duration_ms)
+                        if overlay.outro_duration_ms is not None
+                        else None
+                    )
+                    seg.add_animation(outro, duration=dur)
+                except (KeyError, ValueError) as e:
+                    warnings.append(f"text outro: {e}")
             script.add_segment(seg, text_track)
             continue
 
@@ -210,6 +331,9 @@ def compile_edit_plan(
                 except Exception as e:
                     warnings.append(f"sticker skipped: {e}")
             continue
+
+    if plan.bgm is not None and total_ms > 0:
+        _add_bgm(script, draft, plan, draft_dir, total_ms, warnings)
 
     script.save()
 

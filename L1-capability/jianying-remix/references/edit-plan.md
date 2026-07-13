@@ -28,16 +28,26 @@
       "end_ms": 3000,
       "font_size": 8,
       "align": 1,
-      "transform_y": -0.75
+      "transform_y": -0.75,
+      "keywords": "轻薄风衣",
+      "keyword_color": "#ff7100",
+      "keyword_font_size": 10,
+      "intro": "渐显",
+      "outro": "渐隐"
     },
     {
       "type": "text",
-      "text": "NEW IN",
+      "text": "五个快乐到死的顶级思维",
       "start_ms": 3000,
       "end_ms": 4500,
       "font_size": 11,
       "bold": true,
-      "transform_y": 0.55
+      "transform_y": 0.55,
+      "keyword": "快乐|顶级思维",
+      "keyword_color": "#ff7100",
+      "keyword_font_size": 15,
+      "intro": "弹入",
+      "outro": "弹出"
     },
     {
       "type": "sticker",
@@ -48,9 +58,18 @@
       "transform_x": 0.55,
       "transform_y": 0.65
     }
-  ]
+  ],
+  "bgm": {
+    "path": "/abs/music/bgm.mp3",
+    "volume": 0.35,
+    "fade_in_ms": 400,
+    "fade_out_ms": 800,
+    "loop": true
+  }
 }
 ```
+
+有 `bgm` 时编译器**默认静音原片**（等价 `mute_original_audio` 自动为 true）。若要原声+BGM 混音，显式设 `"mute_original_audio": false`。
 
 | 字段 | 说明 |
 |------|------|
@@ -59,6 +78,8 @@
 | `in_ms` / `out_ms` | 源内裁剪；`out_ms` 可省略=用到片尾 |
 | `junctions` | 转场挂在 `after_clip` 那段**结尾**；相邻接缝尽量换名 |
 | `overlays` | `effect` / `text` / `subtitle` / `sticker`；时间窗按段切分 |
+| `bgm` | 可选；本地/URL 背景音乐，见下 |
+| `mute_original_audio` | 可选；`null`/省略=有 BGM 则静音原片；`false`=保留原声；`true`=强制静音 |
 
 ## overlays 类型
 
@@ -73,6 +94,29 @@
 - 推荐：`subtitle` 底部说明；`text` 标题/角标
 - 可选：`font_size`（字幕约 7–9，标题约 10–14）、`color` `[r,g,b]` 0–1、`bold`、`align`（0 左 / 1 中 / 2 右）、`transform_x` / `transform_y`（半画布单位；字幕默认 `transform_y=-0.75`）、`border`（默认 true 描边）
 
+**关键词高亮**（对齐简创 `add_text_style`，编译进剪映富文本 `styles`）：
+
+| 字段 | 说明 |
+|------|------|
+| `keywords` / `keyword` | 高亮词；`"快乐\|顶级思维"` 或 `["快乐","顶级思维"]`；长词优先匹配 |
+| `keyword_color` | `#RRGGBB` 或 `[r,g,b]`；默认 `#ff7100` |
+| `keyword_font_size` | 关键词字号；默认约 `font_size+2` |
+
+**文字动画**（本机目录，非云端模板）：
+
+| 字段 | 说明 |
+|------|------|
+| `intro` | 入场名，如 `渐显` / `弹入` / `打字机 I` |
+| `outro` | 出场名，如 `渐隐` / `弹出` |
+| `intro_duration_ms` / `outro_duration_ms` | 可选覆盖时长 |
+
+```bash
+jy-compile text-animations --kind intro --free --limit 30
+jy-compile text-animations --kind outro --grep 渐 --free
+```
+
+默认只用非 VIP。不确定时先查目录再写入。
+
 ### `sticker`（贴纸）
 
 优先本地透明图：
@@ -82,6 +126,23 @@
 - 可选：`scale`（默认 0.45）、`transform_x` / `transform_y`（角标常用 `0.55, 0.65`）
 
 **仅当用户明确要求字幕/贴纸时才写入**；不要默认堆满字。
+
+## `bgm`（背景音乐 · 默认开启）
+
+**默认应写入。** 仅用户明确不要配乐时省略。
+
+音源：用户 `path`/`url` 优先；否则 MCP **`creative_generate_bgm`**（暂时不用曲库 `creative_select_bgm`）。禁止 skill 直连平台曲库 HTTP。
+
+| 字段 | 说明 |
+|------|------|
+| `path` / `url` | 二选一；mp3 / wav / m4a 等纯音频（不要用带画面的视频当 BGM） |
+| `in_ms` / `out_ms` | 音频文件内裁剪 |
+| `start_ms` / `end_ms` | 时间轴区间；默认盖满成片 |
+| `volume` | 默认 `0.35`（相对原音）；口播场景可再低 |
+| `fade_in_ms` / `fade_out_ms` | 默认 400 / 800 |
+| `loop` | 默认 `true`；BGM 短于成片时循环铺满 |
+
+配合：有 `bgm` 时**默认静音原片**；仅当用户要保留原声混音时写 `"mute_original_audio": false`。
 
 ## 时间
 
@@ -95,9 +156,10 @@
 ```bash
 jy-compile transitions --limit 50
 jy-compile effects --grep 边框 --limit 30
+jy-compile text-animations --kind intro --free --limit 40
 ```
 
-默认只用非 VIP。不确定时先 `effects --grep` 再写入 Plan。选型规则见 [effect-presets.md](effect-presets.md)。
+默认只用非 VIP。不确定时先 `effects --grep` / `text-animations` 再写入 Plan。选型规则见 [effect-presets.md](effect-presets.md)。
 
 ## 校验
 

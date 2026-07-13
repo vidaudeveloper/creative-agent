@@ -5,12 +5,24 @@
 ```bash
 jy-compile effects --grep <关键词>
 jy-compile transitions --limit 100
+jy-compile text-animations --kind intro --free --limit 40
+jy-compile text-animations --kind outro --free --grep 渐
 ```
 
 若用户允许 VIP，可另选 `撕纸拼贴`、`快速缩放`、`复古撕纸` 等（以本机目录 `is_vip` 为准）。
 
 **原则：按片段内容选效果，禁止全片同一特效/同一转场。** Preset 名只表示整体气质与候选池，不是「整条时间轴套一套」。
 
+## 文字高亮与动画（按需）
+
+| 用途 | 推荐 |
+|------|------|
+| 卖点/品牌词强调 | `keywords` + `keyword_color` `#ff7100`（或品牌色） |
+| 标题入场 | `渐显` / `弹入` / `放大`（免费） |
+| 标题出场 | `渐隐` / `弹出` / `缩小` |
+| 口播字幕 | 一般不加动画；需要时只用轻 `渐显` |
+
+禁止默认给每条字幕都加打字机/故障类动画。
 ## 内容 → 特效（分段）
 
 | 片段内容特点 | 优先特效（选 1，必要时 +1 轻量） | 避免 |

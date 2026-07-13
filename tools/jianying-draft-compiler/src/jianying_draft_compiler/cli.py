@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from .catalog import list_effects, list_transitions
+from .catalog import list_effects, list_text_intros, list_text_outros, list_transitions
 from .compile import compile_edit_plan_file
 from .export import export_draft_to_mp4, export_supported, is_windows
 from .import_draft import detect_jianying_draft_root, import_draft
@@ -36,6 +36,20 @@ def main(argv: list[str] | None = None) -> int:
     p_fx = sub.add_parser("effects", help="List effect catalog names")
     p_fx.add_argument("--limit", type=int, default=0)
     p_fx.add_argument("--grep", type=str, default="")
+
+    p_text_anim = sub.add_parser(
+        "text-animations",
+        help="List text intro/outro animation names",
+    )
+    p_text_anim.add_argument(
+        "--kind",
+        choices=["intro", "outro", "all"],
+        default="all",
+        help="Which catalog to list",
+    )
+    p_text_anim.add_argument("--limit", type=int, default=0)
+    p_text_anim.add_argument("--grep", type=str, default="")
+    p_text_anim.add_argument("--free", action="store_true", help="Only non-VIP")
 
     p_validate = sub.add_parser("validate", help="Validate Edit Plan JSON only")
     p_validate.add_argument("plan", type=Path)
@@ -95,6 +109,25 @@ def main(argv: list[str] | None = None) -> int:
             items = items[: args.limit]
         for it in items:
             print(it.name)
+        print(f"# shown={len(items)} matched={total}", file=sys.stderr)
+        return 0
+
+    if args.cmd == "text-animations":
+        items = []
+        if args.kind in ("intro", "all"):
+            items.extend(list_text_intros())
+        if args.kind in ("outro", "all"):
+            items.extend(list_text_outros())
+        if args.free:
+            items = [i for i in items if not i.is_vip]
+        if args.grep:
+            items = [i for i in items if args.grep in i.name]
+        total = len(items)
+        if args.limit > 0:
+            items = items[: args.limit]
+        for it in items:
+            vip = "VIP" if it.is_vip else "free"
+            print(f"{it.name}\t{it.kind}\t{vip}")
         print(f"# shown={len(items)} matched={total}", file=sys.stderr)
         return 0
 

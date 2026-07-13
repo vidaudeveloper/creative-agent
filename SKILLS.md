@@ -44,6 +44,9 @@ pnpm skills:build
 | `creative_get_job` | Get job status |
 | `creative_list_jobs` | List jobs |
 | `creative_cancel_job` | Cancel job |
+| `creative_select_bgm` | 从 VidAU 曲库按题材选 BGM（返回 url，不扣积分） |
+| `creative_generate_bgm` | AI 生成 BGM |
+| `creative_mux_bgm_into_video` | 将 BGM 混入视频 |
 | `creative_list_models` | List models |
 
 ## Local tools (jianying-remix)

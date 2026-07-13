@@ -85,7 +85,7 @@ jy-compile export <草稿名> -o %USERPROFILE%\Videos\out.mp4
 |----|------|
 | Plan → draft 目录 + zip | 云端导出 MP4 |
 | 转场 + 场景特效写入草稿 | 自研 453/1097 渲染 |
-| 字幕 / 标题字 / 本地贴纸图 | Mac 自动导出 |
+| 字幕 / 标题字 / 本地贴纸图 / BGM | Mac 自动导出 |
 | 本地 path / HTTP url 素材 | 保证全版本 UI 兼容 |
 | Windows RPA 导出（剪映 UI） | 伪造剪映内置贴纸 ID 目录 |
 

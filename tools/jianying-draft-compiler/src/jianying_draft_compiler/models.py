@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 
 class AspectRatio(str, Enum):
@@ -73,6 +73,28 @@ class OverlaySpec(BaseModel):
     )
     scale: float = Field(0.45, gt=0, description="Sticker scale (image overlay)")
     border: bool = Field(True, description="Dark stroke for text readability")
+    # rich text (jcaigc add_text_style style)
+    keywords: str | list[str] | None = Field(
+        None,
+        description='Highlight keywords; pipe string "A|B" or list ["A","B"] (alias: keyword)',
+        validation_alias=AliasChoices("keywords", "keyword"),
+    )
+    keyword_color: str | list[float] = Field(
+        default="#ff7100",
+        description="Keyword color: #RRGGBB or [r,g,b] 0–1",
+    )
+    keyword_font_size: float | None = Field(
+        None,
+        gt=0,
+        description="Keyword size; default ≈ font_size+2",
+    )
+    # text animations (vendor TextIntro / TextOutro catalog names)
+    intro: str | None = Field(None, description="Text intro animation name, e.g. 渐显 / 弹入")
+    outro: str | None = Field(None, description="Text outro animation name, e.g. 渐隐 / 弹出")
+    intro_duration_ms: int | None = Field(None, ge=0, description="Override intro duration (ms)")
+    outro_duration_ms: int | None = Field(None, ge=0, description="Override outro duration (ms)")
+
+    model_config = {"populate_by_name": True}
 
     @model_validator(mode="after")
     def range_and_payload_ok(self) -> OverlaySpec:
@@ -86,9 +108,39 @@ class OverlaySpec(BaseModel):
                 raise ValueError(f"{self.type} overlay needs text")
             if len(self.color) != 3:
                 raise ValueError("color must be [r,g,b] with 3 floats in 0–1")
+            if isinstance(self.keyword_color, list) and len(self.keyword_color) != 3:
+                raise ValueError("keyword_color list must be [r,g,b]")
         elif self.type == "sticker":
             if not self.path and not self.url and not self.resource_id:
                 raise ValueError("sticker overlay needs path, url, or resource_id")
+        return self
+
+
+class BgmSpec(BaseModel):
+    """Background music on an audio track (local file or downloadable URL)."""
+
+    path: str | None = None
+    url: str | None = None
+    in_ms: int = Field(0, ge=0, description="Trim start inside the audio file")
+    out_ms: int | None = Field(None, description="Trim end inside the audio file; default = full file")
+    start_ms: int = Field(0, ge=0, description="Timeline start; default 0")
+    end_ms: int | None = Field(
+        None,
+        description="Timeline end; default = full video duration",
+    )
+    volume: float = Field(0.35, ge=0, le=2.0, description="1.0 = original; BGM often 0.25–0.45")
+    fade_in_ms: int = Field(400, ge=0)
+    fade_out_ms: int = Field(800, ge=0)
+    loop: bool = Field(True, description="If audio shorter than timeline span, tile until end")
+
+    @model_validator(mode="after")
+    def require_source(self) -> BgmSpec:
+        if not self.path and not self.url:
+            raise ValueError("bgm needs either path or url")
+        if self.out_ms is not None and self.out_ms <= self.in_ms:
+            raise ValueError("bgm out_ms must be > in_ms")
+        if self.end_ms is not None and self.end_ms <= self.start_ms:
+            raise ValueError("bgm end_ms must be > start_ms")
         return self
 
 
@@ -101,6 +153,11 @@ class EditPlan(BaseModel):
     clips: list[ClipSpec] = Field(..., min_length=1)
     junctions: list[JunctionSpec] = Field(default_factory=list)
     overlays: list[OverlaySpec] = Field(default_factory=list)
+    bgm: BgmSpec | None = None
+    mute_original_audio: bool | None = Field(
+        None,
+        description="Mute video clip audio. None=auto (mute when bgm is set; keep when no bgm)",
+    )
     title: str = "vidau-p0"
 
     def canvas_size(self) -> tuple[int, int]:

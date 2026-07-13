@@ -403,6 +403,9 @@ class TextSegment(VisualSegment):
         if self.shadow:
             check_flag |= 32
 
+        # UTF-16 code units (matches CapCut / jcaigc keyword ranges)
+        full_units = len(self.text.encode("utf-16-le")) // 2
+
         # 创建基础样式
         base_style = {
             "fill": {
@@ -415,17 +418,18 @@ class TextSegment(VisualSegment):
                     }
                 }
             },
-            "range": [0, len(self.text.encode('utf-16-le'))],
+            "range": [0, full_units],
             "size": self.style.size,
             "bold": self.style.bold,
             "italic": self.style.italic,
             "underline": self.style.underline,
             "strokes": [self.border.export_json()] if self.border else []
         }
-        
-        # 合并基础样式和额外样式
-        styles = [base_style] + self.extra_styles
-        
+
+        # extra_styles may be a full non-overlapping partition (keyword highlight);
+        # in that case do not prepend base_style (would fight CapCut ranges).
+        styles = list(self.extra_styles) if self.extra_styles else [base_style]
+
         content_json = {
             "styles": styles,
             "text": self.text
@@ -442,6 +446,14 @@ class TextSegment(VisualSegment):
             }
         if self.shadow:
             content_json["styles"][0]["shadows"] = [self.shadow.export_json()]
+        # Propagate border/bold onto partitioned styles when using keyword highlights
+        if self.extra_styles and self.border:
+            stroke = self.border.export_json()
+            for st in content_json["styles"]:
+                st.setdefault("strokes", [stroke])
+                st.setdefault("bold", self.style.bold)
+                st.setdefault("italic", self.style.italic)
+                st.setdefault("underline", self.style.underline)
 
         ret = {
             "id": self.material_id,

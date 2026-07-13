@@ -2,13 +2,13 @@
 name: jianying-remix
 description: >-
   Local CapCut/Jianying remix director — per-clip content-aware effects/transitions,
-  optional subtitles/stickers when user asks, compile draft via jianying-draft-compiler,
-  import into user's Jianying; on Windows RPA-export MP4. Not for cloud MP4 or
-  AI fake-alpha plates.
+  optional subtitles/stickers; BGM on by default (user file or MCP generate),
+  compile draft via jianying-draft-compiler, import into user's Jianying;
+  on Windows RPA-export MP4. Not for cloud MP4 or AI fake-alpha plates.
 metadata:
   layer: L1-capability
   requires: []
-  tags: [jianying, capcut, remix, transition, subtitle, sticker, local, draft, editor, windows-export]
+  tags: [jianying, capcut, remix, transition, subtitle, sticker, bgm, local, draft, editor, windows-export]
 ---
 
 # Jianying Remix — 本机草稿导演
@@ -22,7 +22,7 @@ metadata:
 - 用户要「剪映级」转场/边框/胶片等模板感混剪
 - 本机有（或可安装）剪映 + 多段本地/可下载视频
 - 用户说时装混剪、撕纸边框、快切、CapCut 风格等
-- 用户要加**字幕 / 标题字 / 贴纸**（按需求写入 Plan，非默认）
+- 用户要加**字幕 / 标题字 / 贴纸**（按需）；**BGM 默认带上**（用户可关）
 
 ## 何时不用
 
@@ -52,7 +52,7 @@ Windows 导出能力：`jy-compile export-check` + [references/windows-export.md
 - 本地 path 优先；画幅默认 `9:16`
 - Preset 只是**素材池**，不是整片套一层：[references/effect-presets.md](references/effect-presets.md)
 - 默认 `allow_vip=false`
-- 询问或识别：是否要字幕文案、贴纸素材（本地 png/webp）
+- 询问或识别：字幕/贴纸是否需要；BGM **默认要加**（有用户文件优先，否则自动生成；用户明确说不要配乐则跳过）
 
 ### 1.5 按片段内容选型（强制）
 
@@ -82,18 +82,50 @@ Windows 导出能力：`jy-compile export-check` + [references/windows-export.md
 |------|------|
 | 底部说明 / 口播字幕 | `type: "subtitle"`，`text`，`transform_y` 约 `-0.75`，按句或按段切时间窗 |
 | 标题 / 角标大字 | `type: "text"`，字号更大，可放上方 `transform_y` 约 `0.5~0.7` |
+| 关键词高亮 | `keywords`/`keyword` + 可选 `keyword_color`/`keyword_font_size`（简创式富文本） |
+| 文字入/出场 | `intro` / `outro`（如 `渐显`/`渐隐`）；先 `jy-compile text-animations --free` |
 | 贴纸 / 装饰图 | `type: "sticker"` + 本地 `path`（或 `url`）；角标可用 `transform_x/y` + `scale` |
 
 规则：
 
 - 文案要短、可读；避免挡脸 / 挡产品主体
 - 字幕按片段或按句分段，不要一条字幕盖全片除非用户只要一条总标题
+- 需要强调卖点/品牌词时写 `keywords`；不要无意义整句高亮
+- 标题类可加轻入场（`渐显`/`弹入`）；出场可选；默认只用非 VIP
 - 贴纸优先用户提供的透明 PNG；没有图时不要伪造剪映内置 `resource_id`
 - 字段细节见 [references/edit-plan.md](references/edit-plan.md)
 
+### 1.7 BGM（默认开启）
+
+**默认写入 `bgm`。** 仅当用户明确说「不要配乐 / 不要 BGM / 保留原声即可」时省略。
+
+音源优先级（**暂时不走曲库选型** `creative_select_bgm`）：
+
+1. 用户提供的本地 `path` 或 `url`
+2. 否则调用 MCP **`creative_generate_bgm`**（生成配乐，扣积分）：按题材写 `prompt`/`mood`，时长贴近成片；用返回的音频 `url` 写入 Plan
+3. 生成失败：warnings 说明，草稿可导入；请用户补文件或在剪映里加乐
+
+```json
+"bgm": {
+  "url": "https://…/generated.mp3",
+  "volume": 0.35,
+  "fade_in_ms": 400,
+  "fade_out_ms": 800,
+  "loop": true
+}
+```
+
+规则：
+
+- 只用纯音频 URL/文件；不要把视频当 BGM
+- 默认 `volume` 约 `0.3–0.4`
+- **有 BGM 时原视频默认静音**（编译器自动；不必手写 `mute_original_audio`）。用户明确要「原声+配乐」时才设 `"mute_original_audio": false`
+- `loop: true`（默认）铺满成片
+- 不要自己拼平台曲库 HTTP；无用户文件时直接 `creative_generate_bgm`
+
 ### 2. 写 Edit Plan
 
-见 [references/edit-plan.md](references/edit-plan.md)。写入临时 JSON；overlays / junctions 必须体现分段差异；字幕/贴纸仅按需。
+见 [references/edit-plan.md](references/edit-plan.md)。写入临时 JSON；overlays / junctions 体现分段差异；字幕/贴纸按需；**BGM 默认写入**。
 
 ### 3. 校验 → 编译 → 导入
 
@@ -136,13 +168,14 @@ jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --resoluti
 | `export` 超时 / 找不到按钮 | 版本 UI 不兼容或 VIP 弹窗；改手动导出 |
 | VIP 特效 | 换免费 preset |
 | 贴纸图打不开 | 检查 path/url；改 PNG；或去掉 sticker overlay |
+| BGM 失败 / 无声音 | 确认是纯音频；看 compile warnings；生成失败则请用户补文件后重编；路径经 import 改写 |
 
 ## 交付话术
 
 **Windows 自动导出成功：**
 
-> 已完成混剪并导出：`<mp4路径>`。草稿名 `<name>`。分段特效：…；接缝转场：…；字幕/贴纸：…（若有）。
+> 已完成混剪并导出：`<mp4路径>`。草稿名 `<name>`。分段特效：…；接缝转场：…；BGM：…；字幕/贴纸：…（若有）。
 
 **macOS / 仅导入：**
 
-> 已写入剪映草稿 `<name>`。分段特效与转场已按素材内容区分（含按需字幕/贴纸）。请退出重开剪映后打开预览并手动导出。本机为 Mac，无法 RPA 自动导出。
+> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段特效与转场已按素材内容区分。请退出重开剪映后打开预览并手动导出。本机为 Mac，无法 RPA 自动导出。

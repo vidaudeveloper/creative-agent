@@ -125,9 +125,10 @@ skills:
     layer: L1-capability
     path: L1-capability/jianying-remix
     title: Jianying / CapCut Local Remix
-    tags: [jianying, capcut, remix, transition, local, draft]
+    tags: [jianying, capcut, remix, transition, local, draft, bgm]
     requires: []
-    mcp_tools: []
+    mcp_tools:
+      - creative_generate_bgm
 
   - id: trend-viral-short
     layer: L2-vertical

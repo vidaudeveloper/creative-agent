@@ -14,7 +14,7 @@ metadata:
 - Generation (sync + async) requires **VIP** and **deducts coins**.
 - Non-VIP → share the purchase URL from the MCP error.
 - Insufficient coins → ask user to top up.
-- **Free**: `creative_estimate`, `creative_get_upload_instructions`, `creative_upload_reference`, `creative_generate_script`, `creative_list_models`, `creative_mux_bgm_into_video`.
+- **Free**: `creative_estimate`, `creative_get_upload_instructions`, `creative_upload_reference`, `creative_generate_script`, `creative_list_models`, `creative_select_bgm`, `creative_mux_bgm_into_video`.
 
 ## Prompt gate (required before any generation MCP)
 

@@ -72,19 +72,19 @@ jy-compile where
 # 期望：.../Movies/JianyingPro/User Data/Projects/com.lveditor.draft
 ```
 
-Windows 若需自动导出：
+Windows 自动导出（可选、**非 skill 默认流程**）：
 
 ```bat
 jy-compile export-check
 :: 若 ok=false，在安装目录执行: uv sync --extra windows
 ```
 
-详见 [windows-export.md](windows-export.md)。
+详见 [windows-export.md](windows-export.md)。**jianying-remix skill 已屏蔽自动导出**，导入后请用户在剪映「本地草稿」查看并手动导出。
 
 ## 对用户话术
 
 > 首次使用剪映混剪需安装本机草稿编译器（一次性，来自 VidAU skill 仓库）。执行：  
 > `curl -fsSL https://raw.githubusercontent.com/vidaudeveloper/creative-agent/main/tools/install-jy-compile.sh | bash`  
-> 装好后我会把混剪写入剪映草稿箱；**Windows** 可尝试自动导出，**Mac** 需手动导出。
+> 装好后我会把混剪写入剪映草稿箱；请你**退出重开剪映**，在「本地草稿」打开预览，需要成片时自行导出。
 
 **不要**在未验证 `jy-compile where` 成功时声称「已导入剪映」。

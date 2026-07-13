@@ -4,17 +4,20 @@ description: >-
   Local CapCut/Jianying remix director for user-provided videos only —
   per-clip effects/transitions, optional subtitles/stickers; BGM on by default;
   can batch-output multiple remix variants (different transitions/effects/BGM)
-  from the same clips; compile/import draft; Windows RPA-export MP4.
-  Does NOT call creative_submit_workflow / direct_video / AI clip generation.
+  from the same clips; compile/import draft only — no auto-export; user opens
+  Jianying to preview/export. Does NOT call creative_submit_workflow /
+  direct_video / AI clip generation.
 metadata:
   layer: L1-capability
   requires: []
-  tags: [jianying, capcut, remix, transition, subtitle, sticker, bgm, batch, local, draft, editor, windows-export]
+  tags: [jianying, capcut, remix, transition, subtitle, sticker, bgm, batch, local, draft, editor]
 ---
 
 # Jianying Remix — 本机草稿导演
 
-用户提供多段视频时，你是**智能混剪导演**；本机 `jianying-draft-compiler` 是**草稿编译器**；用户剪映是**特效渲染器**（Windows 可 RPA 自动导出）。
+用户提供多段视频时，你是**智能混剪导演**；本机 `jianying-draft-compiler` 是**草稿编译器**；用户剪映是**特效渲染器**。
+
+**成片交付（强制）**：流程止于 `compile` + `import`。**禁止**调用 `jy-compile export` / `export-check` / 任何 RPA·OCR 自动导出。导入成功后提醒用户：**退出并重开剪映 → 在「本地草稿」打开对应草稿预览 → 需要成片时自行点导出**。
 
 **素材来源（强制）**：只用**用户提供的视频**（本地 path / 可下载 url / 上游 skill 已落盘的片段）。  
 **禁止**：`creative_submit_workflow`、`direct_video`、`creative_image_to_video`、`creative_generate_video`、`creative_submit_batch_variants` 等任何 AI 出片。缺素材就请用户补视频，或改走 **product-image-to-jianying-remix**（那边负责图生片段）。
@@ -37,7 +40,7 @@ metadata:
 | 无剪映、只要快速拼接成片 | 其它 remix / ffmpeg / creative-agent 成片链路 |
 | 只有产品图、还没有视频片段 | **product-image-to-jianying-remix**（图生片段后再回本 skill） |
 | 要 AI 文生/图生视频 | `creative-direct` / script2film / L2 产品图流水线 — **不要**在本 skill 里调 `direct_video` |
-| 只要云端 MP4、不打开本机剪映 | 不要用本 skill 承诺自动成片 |
+| 只要云端 MP4、不打开本机剪映 | 不要用本 skill 承诺自动成片（本 skill 只写草稿） |
 
 ## 前置探测（每次必做）
 
@@ -50,8 +53,7 @@ jy-compile where
 ```
 
 Compiler 来源与安装：同仓 `tools/jianying-draft-compiler/`，见 [references/install-compiler.md](references/install-compiler.md)。  
-Windows 导出能力：`jy-compile export-check` + [references/windows-export.md](references/windows-export.md)。
-剪映 10.9 若 UIA 空树，用 `--driver vision`（屏幕 OCR 点击）。
+（`references/windows-export.md` 仅为历史/手工调试文档；**本 skill 默认不跑自动导出**。）
 
 ## 工作流
 
@@ -69,8 +71,8 @@ Windows 导出能力：`jy-compile export-check` + [references/windows-export.md
 
 ### 1.0 批量混剪变体（接受 · 仅用户视频）
 
-对**同一组用户提供的 clips**，批量生成多版「不同转场 / 特效 / BGM」的剪映草稿（或导出）。  
-**不是**批量 AI 生成视频。
+对**同一组用户提供的 clips**，批量生成多版「不同转场 / 特效 / BGM」的剪映草稿。  
+**不是**批量 AI 生成视频；**不**自动导出 MP4。
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
@@ -89,10 +91,10 @@ Windows 导出能力：`jy-compile export-check` + [references/windows-export.md
 | B | 胶片质感 | 溶解/模糊系 | 胶片框 + 漏光轮换 | 偏缓 |
 | C | 潮流故障 | 故障/抖动接缝 | 轻故障 + 星光轮换 | 电子感 |
 
-3. **每一版**独立走 §1.5→§2→§3（以及按需 §4）：单独 Edit Plan、`title`/`--name` 带后缀 `-v1`/`-v2`…  
+3. **每一版**独立走 §1.5→§2→§3：单独 Edit Plan、`title`/`--name` 带后缀 `-v1`/`-v2`…  
 4. 段内选型规则与单版相同（禁止一版内全片同一特效/同一转场）  
 5. BGM：用户无文件时每版可各调一次 `creative_generate_bgm`（mood 不同）；有用户 BGM 则可同曲不同 `volume`/fade，或用户允许时再生成  
-6. 交付时列表：`版本 | 草稿名 | 转场要点 | 特效要点 | BGM | 导出路径（若有）`
+6. 交付时列表：`版本 | 草稿名 | 转场要点 | 特效要点 | BGM`（提醒用户到剪映本地草稿查看）
 
 ### 1.5 按片段内容选型（强制）
 
@@ -175,30 +177,18 @@ jy-compile compile /tmp/vidau-edit-plan.json
 jy-compile import "<draft_dir>" --name "<短横线英文名>"
 ```
 
-### 4. 导出（按平台）
+### 4. 提醒用户在剪映中查看（禁止自动导出）
 
-**先探测 OS**（`uname` / `sys.platform` / 用户环境）。
+**禁止**执行 `jy-compile export`、`jy-compile export-check`，以及任何 UIA/OCR/pyautogui 自动导出。
 
-#### Windows（完整自动）
+导入成功后必须明确告知用户：
 
-1. `jy-compile export-check` → 必须 `ok: true`；否则装 `uv sync --extra windows` 并重试  
-2. 确认**剪映专业版已打开且在首页**（能看到刚导入的草稿名）  
-3. 执行：
+1. **完全退出并重新打开剪映**（否则首页可能看不到新草稿）  
+2. 在首页 **「本地草稿」** 中找到草稿名 `<name>`（多版则为 `-v1` / `-v2`…）  
+3. 打开草稿预览转场/特效/BGM  
+4. 需要成片时，在剪映内自行点 **导出**
 
-```bat
-jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --driver vision --timeout 600
-```
-
-或 `--driver auto`（先 UIA 再 OCR）。10.9 UIA 可用时也可加 `--profile v10`。
-
-> 剪映 **10.9** 用 `--profile v10`；老版本用 `--profile legacy`；不确定可用 `auto`。
-
-4. 成功则交付 `output_mp4` 路径；失败则展示 error，并引导手动导出  
-
-#### macOS / 非 Windows
-
-- 请用户**退出并重开剪映**，打开草稿预览后**手动点导出**
-- **不要**调用 `jy-compile export`（会直接失败）
+若用户追问自动导出：说明当前 skill **已关闭自动导出**，请在剪映草稿箱操作；不要擅自再跑 export。
 
 ## 失败处理
 
@@ -207,22 +197,15 @@ jy-compile export <草稿名> -o %USERPROFILE%\Videos\<草稿名>.mp4 --driver v
 | `jy-compile` 不存在 | install-compiler；阻塞 |
 | `where` 失败 | 装剪映或设 `JIANYING_DRAFT_ROOT` |
 | 链接媒体 / 暂无访问权限 | 必须用 `import`（路径改写） |
-| `export-check` 失败 | 装 windows extras；确认在 Windows |
-| `export` 找不到草稿 | 剪映回首页；草稿名=文件夹名；确认 `draft_info.name` 非空；robocopy/重启剪映 |
-| `export` 日志 `uia_children=0` | 改 `--driver vision`；或 `--driver auto` 自动回退 |
-| `export` 超时 / 找不到按钮 | 版本 UI 不兼容或 VIP 弹窗；改手动导出 |
+| 首页看不到草稿 | 请用户退出重开剪映；核对 `--name` 与本地草稿列表 |
 | VIP 特效无法应用 / 弹窗 | 确认是否有剪映 VIP；无则换免费 preset 并重编；有则请用户登录 VIP 后重开剪映 |
 | 贴纸图打不开 | 检查 path/url；改 PNG；或去掉 sticker overlay |
 | BGM 失败 / 无声音 | 确认是纯音频；看 compile warnings；生成失败则请用户补文件后重编；路径经 import 改写 |
 | 用户要 AI 出片 | 拒绝在本 skill 调 `direct_video`；改 **product-image-to-jianying-remix** 或 creative-direct |
 | 批量变体部分失败 | 已成功版本照常交付；失败版单独重编 |
+| 用户要自动导出 MP4 | 拒绝跑 export；引导在剪映本地草稿打开并手动导出 |
 
 ## 交付话术
 
-**Windows 自动导出成功：**
-
-> 已完成混剪并导出：`<mp4路径>`。草稿名 `<name>`。分段特效：…；接缝转场：…；BGM：…；字幕/贴纸：…（若有）。效果均为免费项 / 已按你的剪映 VIP 使用 VIP 素材（二选一如实说明）。
-
-**macOS / 仅导入：**
-
-> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段特效与转场已按素材内容区分（默认免费；若用了 VIP 素材请确认剪映已登录 VIP）。请退出重开剪映后打开预览并手动导出。本机为 Mac，无法 RPA 自动导出。
+> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段特效：…；接缝转场：…；BGM：…；字幕/贴纸：…（若有）。效果均为免费项 / 已按你的剪映 VIP 使用 VIP 素材（二选一如实说明）。  
+> 请**退出并重开剪映**，在「本地草稿」打开该草稿预览；需要成片时在剪映内自行导出。本流程不自动导出 MP4。

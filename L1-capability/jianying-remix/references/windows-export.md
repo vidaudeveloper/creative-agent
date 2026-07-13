@@ -1,5 +1,8 @@
 # Windows 自动导出（RPA）
 
+> **Skill 状态**：`jianying-remix` / `product-image-to-jianying-remix` **默认不调用**自动导出。  
+> Agent 应在 `import` 后提醒用户到剪映「本地草稿」预览并手动导出。下文仅供人工调试 `jy-compile export`。
+
 仅 **Windows + 剪映专业版**。macOS 无此能力。
 
 ## 前置

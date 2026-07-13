@@ -3,7 +3,8 @@ name: product-image-to-jianying-remix
 description: >-
   Accepts batch video generation from one product image — async parallel
   creative_submit_workflow (direct_video, default 5×4s) → poll every 15s →
-  jianying-remix CapCut/Jianying draft remix and export.
+  jianying-remix CapCut/Jianying draft remix (compile/import only; user
+  previews/exports in Jianying — no auto-export).
 metadata:
   layer: L2-vertical
   requires:
@@ -19,7 +20,7 @@ metadata:
 
 # 产品图 → 场景片段批量生成 → 剪映混剪
 
-用户只上传**一张产品图**时启用：先**批量生成**多段「产品应用场景」短视频，轮询全部完成后，再加载 **jianying-remix** 做本机剪映级混剪成片。
+用户只上传**一张产品图**时启用：先**批量生成**多段「产品应用场景」短视频，轮询全部完成后，再加载 **jianying-remix** 写入本机剪映草稿（用户自行预览/导出）。
 
 ## 接受「批量生成」
 
@@ -76,7 +77,7 @@ metadata:
 5. 【批量生成】并行 creative_submit_workflow × N（direct_video，4s）
 6. 后台每 15s 轮询全部 job_id，直到完成/失败
 7. 收集视频 URL（尽量落本地）
-8. 加载 jianying-remix → Edit Plan → 编译/导入/（Windows）导出
+8. 加载 jianying-remix → Edit Plan → 编译/导入（**不**自动导出；提醒用户打开剪映草稿）
 ```
 
 ---
@@ -206,7 +207,7 @@ creative_estimate
 
 ## 7. 交接 jianying-remix
 
-**必须加载完整 jianying-remix skill**，按其流程执行（探测 `jy-compile`、写 Edit Plan、校验、编译、导入、Windows 可 export）。  
+**必须加载完整 jianying-remix skill**，按其流程执行（探测 `jy-compile`、写 Edit Plan、校验、编译、导入）。**不要**跑 `jy-compile export`。  
 把已生成片段当作**用户提供视频**交给它；**禁止**在混剪阶段再调 `creative_submit_workflow` / `direct_video`。若用户还要多版转场/特效/BGM，走 jianying-remix **§1.0 批量混剪变体**。
 
 对本流水线的约定：
@@ -219,7 +220,8 @@ creative_estimate
 
 交付话术示例：
 
-> 已批量生成 N 段场景视频并完成剪映混剪。草稿名 `<name>`。场景：1…N。失败段：…（若有）。请打开剪映预览；Windows 已尝试自动导出则附 MP4 路径。
+> 已批量生成 N 段场景视频并完成剪映混剪。草稿名 `<name>`。场景：1…N。失败段：…（若有）。  
+> 请**退出并重开剪映**，在「本地草稿」打开该草稿预览；需要成片时在剪映内自行导出（本流程不自动导出 MP4）。
 
 ---
 

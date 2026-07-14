@@ -126,6 +126,16 @@ async function main() {
     console.error(`[skills:install] done with ${failed} failure(s)`);
     process.exit(1);
   }
+
+  // Category blurb for Hermes system-prompt skill index (DESCRIPTION.md)
+  const catDescSrc = join(repoRoot, "DESCRIPTION.md");
+  const catDescDest = join(hermesHome, "skills", category, "DESCRIPTION.md");
+  if (existsSync(catDescSrc)) {
+    await mkdir(dirname(catDescDest), { recursive: true });
+    await cp(catDescSrc, catDescDest);
+    console.info(`[skills:install] ✓ ${category}/DESCRIPTION.md`);
+  }
+
   console.info("[skills:install] all skills installed");
 }
 

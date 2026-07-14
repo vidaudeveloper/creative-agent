@@ -1,6 +1,6 @@
 ---
 name: creative-seedance2-prompt
-description: Seedance 2.0 / 即梦 video prompt engineering — mandatory before any video MCP call. Use when generating, editing, or refining video prompts for creative_generate_video, creative_image_to_video, creative_first_frame_to_video, script2film shot descriptions, or direct_video workflows.
+description: Use BEFORE any video MCP; write Seedance/即梦 prompts
 metadata:
   layer: L0-foundation
   requires: []

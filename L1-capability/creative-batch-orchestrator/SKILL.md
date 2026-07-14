@@ -1,6 +1,6 @@
 ---
 name: creative-batch-orchestrator
-description: Batch orchestration — up to 10 items per batch, mixed skills/MCP, parallel submit and track
+description: Use when ≥2 parallel creative jobs mixed skills/MCP
 metadata:
   layer: L1-capability
   requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]

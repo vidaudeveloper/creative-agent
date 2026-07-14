@@ -1,6 +1,6 @@
 ---
 name: creative-gpt-image2-prompt
-description: GPT Image 2 / gpt-image-2 prompt engineering — mandatory before any image MCP call. Use when generating or editing images via creative_generate_image, batch_variants, direct_image workflows, keyframe briefs, or identity-board descriptions.
+description: Use BEFORE any image MCP; write GPT-Image-2 prompts
 metadata:
   layer: L0-foundation
   requires: []

@@ -1,6 +1,6 @@
 ---
 name: creative-direct
-description: Direct image/video generation (sync, single clip ≤15s; audio on by default)
+description: Use when ≤15s clip/image; NOT multi-shot or product URL
 metadata:
   layer: L1-capability
   requires: [creative-platform, creative-job-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]

@@ -1,6 +1,6 @@
 ---
 name: product-url-to-video
-description: Product URL → scrape product info → product ad video/image (DTC and major marketplaces)
+description: Use when user pastes product page URL to make ad video
 metadata:
   layer: L2-vertical
   requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-script2film, creative-script2film-keyframes]

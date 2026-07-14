@@ -1,6 +1,6 @@
 ---
 name: creative-script2film-keyframes
-description: Script-to-video (first/last frame) — per-shot keyframes drive Seedance transition animation
+description: Use when multi-shot needs first/last-frame transitions
 metadata:
   layer: L1-capability
   requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt, creative-script2film]

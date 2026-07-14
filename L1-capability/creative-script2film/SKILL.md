@@ -1,6 +1,6 @@
 ---
 name: creative-script2film
-description: Long-form multi-shot video (16s–120s) — one-liner → script → reference-image-to-video + FFmpeg concat + BGM
+description: Use when 16–120s multi-shot ad/story; NOT ≤15s or keyframes
 metadata:
   layer: L1-capability
   requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt]

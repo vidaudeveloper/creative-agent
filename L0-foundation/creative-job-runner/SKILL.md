@@ -1,6 +1,6 @@
 ---
 name: creative-job-runner
-description: Track image/video jobs in chat after submit (no sleep/auto-polling in conversation)
+description: Use after submit to track job_id; never sleep/poll loop
 metadata:
   layer: L0-foundation
   requires: []

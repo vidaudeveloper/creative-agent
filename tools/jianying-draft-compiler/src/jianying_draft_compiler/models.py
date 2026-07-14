@@ -29,6 +29,19 @@ class ClipSpec(BaseModel):
         None,
         description="Trim end in source, milliseconds; default = full media duration",
     )
+    intro: str | None = Field(None, description="Video intro animation (IntroType catalog title)")
+    outro: str | None = Field(None, description="Video outro animation (OutroType catalog title)")
+    group_animation: str | None = Field(
+        None,
+        description="Video group animation (GroupAnimationType); mutually exclusive with intro/outro",
+    )
+    filter: str | None = Field(None, description="Filter catalog name (FilterType meta.name)")
+    filter_intensity: float = Field(80.0, ge=0, le=100, description="Filter strength 0–100")
+    mask: str | None = Field(None, description="Mask catalog name (MaskType meta.name)")
+    character_effect: str | None = Field(
+        None,
+        description="Character effect catalog name (VideoCharacterEffectType); applied to this clip",
+    )
 
     @model_validator(mode="after")
     def require_source(self) -> ClipSpec:
@@ -36,6 +49,8 @@ class ClipSpec(BaseModel):
             raise ValueError("clip needs either path or url")
         if self.out_ms is not None and self.out_ms <= self.in_ms:
             raise ValueError("out_ms must be > in_ms")
+        if self.group_animation and (self.intro or self.outro):
+            raise ValueError("group_animation cannot be set together with intro or outro")
         return self
 
 
@@ -93,6 +108,12 @@ class OverlaySpec(BaseModel):
     outro: str | None = Field(None, description="Text outro animation name, e.g. 渐隐 / 弹出")
     intro_duration_ms: int | None = Field(None, ge=0, description="Override intro duration (ms)")
     outro_duration_ms: int | None = Field(None, ge=0, description="Override outro duration (ms)")
+    font: str | None = Field(None, description="Font catalog name for text/subtitle overlays")
+    loop: str | None = Field(None, description="Text loop animation name (TextLoopAnim catalog title)")
+    effect_kind: Literal["auto", "scene", "character"] = Field(
+        "auto",
+        description="Effect catalog hint when type=effect; auto searches both scene and character",
+    )
 
     model_config = {"populate_by_name": True}
 

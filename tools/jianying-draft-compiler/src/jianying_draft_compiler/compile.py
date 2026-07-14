@@ -7,10 +7,18 @@ import uuid
 from pathlib import Path
 
 from .catalog import (
+    resolve_character_effect,
     resolve_effect,
+    resolve_filter,
+    resolve_font,
+    resolve_mask,
     resolve_text_intro,
+    resolve_text_loop,
     resolve_text_outro,
     resolve_transition,
+    resolve_video_group,
+    resolve_video_intro,
+    resolve_video_outro,
     validate_edit_plan_catalog,
 )
 from .media import ensure_local_media, ms_to_us, us_to_ms
@@ -190,6 +198,47 @@ def compile_edit_plan(
             clip_settings=draft.ClipSettings(),
         )
 
+        if clip.filter:
+            try:
+                filter_type = resolve_filter(clip.filter)
+                segment.add_filter(filter_type, intensity=clip.filter_intensity)
+            except (KeyError, ValueError) as e:
+                raise ValueError(f"clip[{i}] filter invalid: {e}") from e
+
+        if clip.character_effect:
+            try:
+                effect_type = resolve_character_effect(clip.character_effect)
+                segment.add_effect(effect_type)
+            except (KeyError, ValueError) as e:
+                raise ValueError(f"clip[{i}] character_effect invalid: {e}") from e
+
+        if clip.mask:
+            try:
+                mask_type = resolve_mask(clip.mask)
+                segment.add_mask(mask_type)
+            except (KeyError, ValueError) as e:
+                raise ValueError(f"clip[{i}] mask invalid: {e}") from e
+
+        if clip.group_animation:
+            try:
+                group_anim = resolve_video_group(clip.group_animation)
+                segment.add_animation(group_anim)
+            except (KeyError, ValueError) as e:
+                raise ValueError(f"clip[{i}] group_animation invalid: {e}") from e
+        else:
+            if clip.intro:
+                try:
+                    intro_anim = resolve_video_intro(clip.intro)
+                    segment.add_animation(intro_anim)
+                except (KeyError, ValueError) as e:
+                    raise ValueError(f"clip[{i}] intro invalid: {e}") from e
+            if clip.outro:
+                try:
+                    outro_anim = resolve_video_outro(clip.outro)
+                    segment.add_animation(outro_anim)
+                except (KeyError, ValueError) as e:
+                    raise ValueError(f"clip[{i}] outro invalid: {e}") from e
+
         junction = junction_by_clip.get(i)
         if junction is not None:
             if i >= len(plan.clips) - 1:
@@ -224,7 +273,7 @@ def compile_edit_plan(
 
         if overlay.type == "effect":
             try:
-                effect_type = resolve_effect(overlay.name or "")
+                effect_type = resolve_effect(overlay.name or "", kind=overlay.effect_kind)
             except (KeyError, ValueError) as e:
                 raise ValueError(f"effect overlay invalid: {e}") from e
             # One track per effect so overlays can stack (Jianying forbids overlap on same effect track).
@@ -258,12 +307,19 @@ def compile_edit_plan(
             text_idx += 1
             script.add_track_ordered(track_type=draft.TrackType.text, track_name=text_track)
             content = overlay.text or ""
+            font_type = None
+            if overlay.font:
+                try:
+                    font_type = resolve_font(overlay.font)
+                except (KeyError, ValueError) as e:
+                    raise ValueError(f"text font invalid: {e}") from e
             seg = TextSegment(
                 content,
                 tr,
                 style=style,
                 clip_settings=clip_settings,
                 border=border,
+                font=font_type,
             )
             if overlay.keywords:
                 try:
@@ -293,7 +349,7 @@ def compile_edit_plan(
                     )
                     seg.add_animation(intro, duration=dur)
                 except (KeyError, ValueError) as e:
-                    warnings.append(f"text intro: {e}")
+                    raise ValueError(f"text intro: {e}") from e
             if overlay.outro:
                 try:
                     outro = resolve_text_outro(overlay.outro)
@@ -304,7 +360,13 @@ def compile_edit_plan(
                     )
                     seg.add_animation(outro, duration=dur)
                 except (KeyError, ValueError) as e:
-                    warnings.append(f"text outro: {e}")
+                    raise ValueError(f"text outro: {e}") from e
+            if overlay.loop:
+                try:
+                    loop_anim = resolve_text_loop(overlay.loop)
+                    seg.add_animation(loop_anim)
+                except (KeyError, ValueError) as e:
+                    raise ValueError(f"text loop: {e}") from e
             script.add_segment(seg, text_track)
             continue
 

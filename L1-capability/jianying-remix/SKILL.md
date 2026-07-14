@@ -2,15 +2,15 @@
 name: jianying-remix
 description: >-
   Local CapCut/Jianying remix director for user-provided videos only —
-  per-clip effects/transitions, optional subtitles/stickers; BGM on by default;
-  can batch-output multiple remix variants (different transitions/effects/BGM)
-  from the same clips; compile/import draft only — no auto-export; user opens
-  Jianying to preview/export. Does NOT call creative_submit_workflow /
-  direct_video / AI clip generation.
+  intelligently picks per-clip filters, video intro/outro/group animations,
+  scene/character effects, transitions, fonts and text animations; optional
+  subtitles/stickers; BGM on by default; can batch multiple remix variants;
+  compile/import draft only — no auto-export. Does NOT call
+  creative_submit_workflow / direct_video / AI clip generation.
 metadata:
   layer: L1-capability
   requires: []
-  tags: [jianying, capcut, remix, transition, subtitle, sticker, bgm, batch, local, draft, editor]
+  tags: [jianying, capcut, remix, transition, filter, animation, effect, font, subtitle, sticker, bgm, batch, local, draft, editor]
 ---
 
 # Jianying Remix — 本机草稿导演
@@ -22,9 +22,11 @@ metadata:
 **素材来源（强制）**：只用**用户提供的视频**（本地 path / 可下载 url / 上游 skill 已落盘的片段）。  
 **禁止**：`creative_submit_workflow`、`direct_video`、`creative_image_to_video`、`creative_generate_video`、`creative_submit_batch_variants` 等任何 AI 出片。缺素材就请用户补视频，或改走 **product-image-to-jianying-remix**（那边负责图生片段）。
 
-**接受的「批量生成」**：同一套用户视频 → 批量产出**多版混剪**（不同转场 / 特效 / BGM 组合），每版一份 Edit Plan → 编译/导入（见 §1.0）。
+**接受的「批量生成」**：同一套用户视频 → 批量产出**多版混剪**（不同转场 / 特效 / 滤镜 / 动画 / BGM 组合），每版一份 Edit Plan → 编译/导入（见 §1.0）。
 
-**不做**：自研 453/1097 特效渲染、云端服务器导出成片、AI 生 JPG 假透明转场板、AI 生视频素材。
+**资源尽量用满（强制方向）**：不只贴边框。按片段数量与内容，尽量覆盖：转场、场景特效、人物特效、滤镜、视频入出/组合动画、字体与文字动画（有字幕时）。选型见 §1.5 与 [effect-presets.md](references/effect-presets.md)。
+
+**不做**：自研特效渲染、云端服务器导出成片、AI 生 JPG 假透明转场板、AI 生视频素材。
 
 ## 何时使用
 
@@ -71,79 +73,96 @@ Compiler 来源与安装：同仓 `tools/jianying-draft-compiler/`，见 [refere
 
 ### 1.0 批量混剪变体（接受 · 仅用户视频）
 
-对**同一组用户提供的 clips**，批量生成多版「不同转场 / 特效 / BGM」的剪映草稿。  
+对**同一组用户提供的 clips**，批量生成多版「不同转场 / 特效 / 滤镜 / 动画 / BGM」的剪映草稿。  
 **不是**批量 AI 生成视频；**不**自动导出 MP4。
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
 | `variant_count` | `3` | 1–5 版；过多则拆次确认 |
 | `clips` | 用户提供 | 各版共用同一 `clips[]` |
-| 差异维度 | 转场 + 分段特效 + BGM | 每版至少换一类；优先三类都换 |
+| 差异维度 | 转场 + 特效/滤镜 + 视频动画策略 + BGM | 每版至少换两类；优先三类都换 |
 
 **步骤：**
 
 1. 锁定共用 `clips[]`（path/url）；校验文件可读  
 2. 规划 `variant_count` 套差异表，例如：
 
-| 版 | 气质 | 转场策略 | 特效策略 | BGM |
-|----|------|----------|----------|-----|
-| A | 清爽促销 | 快切/闪白系 | 镭射边框 + 细闪轮换 | 偏亮节奏 |
-| B | 胶片质感 | 溶解/模糊系 | 胶片框 + 漏光轮换 | 偏缓 |
-| C | 潮流故障 | 故障/抖动接缝 | 轻故障 + 星光轮换 | 电子感 |
+| 版 | 气质 | 转场 | 特效+滤镜 | 视频动画 | BGM |
+|----|------|------|-----------|----------|-----|
+| A | 清爽促销 | 闪白系 | 镭射边框 + `清新`/`日系奶油` | 多数 `渐显`/`渐隐` | 偏亮 |
+| B | 胶片质感 | 溶解系 | 胶片框 + `Lofi II` | 1 段 `三分割`，余段轻入出 | 偏缓 |
+| C | 潮流故障 | 故障系 | 轻故障 + `VHS III` | `动感放大`/`缩小` + 1 段 `抖入放大` | 电子感 |
 
 3. **每一版**独立走 §1.5→§2→§3：单独 Edit Plan、`title`/`--name` 带后缀 `-v1`/`-v2`…  
 4. 段内选型规则与单版相同（禁止一版内全片同一特效/同一转场）  
 5. BGM：用户无文件时每版可各调一次 `creative_generate_bgm`（mood 不同）；有用户 BGM 则可同曲不同 `volume`/fade，或用户允许时再生成  
-6. 交付时列表：`版本 | 草稿名 | 转场要点 | 特效要点 | BGM`（提醒用户到剪映本地草稿查看）
+6. 交付时列表：`版本 | 草稿名 | 转场 | 特效/滤镜 | 动画 | BGM`（提醒用户到剪映本地草稿查看）
 
-### 1.5 按片段内容选型（强制）
+### 1.5 按片段内容智能选型（强制 · 尽量用满资源）
 
-写 Plan 前必须先**看懂每段视频**（读文件名/用户描述；能读帧或预览就看画面；否则根据题材推断），再为**每一段、每一条接缝**单独选特效与转场。
+写 Plan 前必须先**看懂每段视频**（文件名/描述/能读帧则看画面），再为**每一段、每一条接缝**选型。  
+完整表格见 [effect-presets.md](references/effect-presets.md)（含按 clip 数的满配强度）。
+
+**每段 clip 应尽量覆盖（按内容取舍，不是全空），且遵守数量上限：**
+
+| 层 | Plan 字段 | 每段上限 | 查法 |
+|----|-----------|----------|------|
+| 滤镜 | `clips[].filter` + `filter_intensity` | **1** | `catalog --type filters --free` |
+| 视频入出 | `clips[].intro` / `outro` | **1 套**（可同时有 intro+outro） | `catalog --type video-intros/outros` |
+| 或组合动画 | `clips[].group_animation`（与 intro/outro **互斥**；全片最多 1–2 段） | **1**（与上互斥） | `catalog --type video-groups` |
+| 人物特效 | `clips[].character_effect`（**画面有人即可挂**） | **1**（不要再用 character overlay 叠） | `catalog --type effects --kind character` |
+| 场景特效 | `overlays` `type=effect`，时间窗=该段轴上区间 | **1**（禁止同段叠边框+漏光+闪烁） | `catalog --type effects --kind scene` |
+| 蒙版 | `clips[].mask` | **0**（默认）；有则 ≤1 | `catalog --type masks` |
+| 转场 | `junctions[].transition` | 接缝 1 个 | `catalog --type transitions` |
+| 文字（若有） | `font` + 文字 `intro`/`outro`/`loop` | 标题短窗；勿堆满 | `fonts` / `text-intros` / `text-loops` |
+
+同段允许组合示例：`filter` +（`intro`/`outro` 或 `group`）+ `character_effect` + **1 个**场景特效。  
+同段禁止：多个 `type=effect` 盖同一段；`character_effect` 再加人物类 effect overlay。
 
 **禁止：**
 
-- 全片只用同一个 `overlays[].name` 盖满时间轴
-- 所有 `junctions` 用同一个 `transition`
-- 不看素材直接套 preset「全程」模板
-- **转场/特效字段错位**（会导致剪映打开草稿崩溃）：
-  - `junctions[].transition` **只能**用 `jy-compile transitions` 目录名（如 `竖向模糊`、`闪白`、`色彩溶解`）
-  - `overlays` 且 `type=effect` 的 `name` **只能**用 `jy-compile effects` 目录名（如 `撕纸涂鸦边框`、`胶片框 III`、`细闪`）
-  - **禁止**把边框/胶片/闪烁等特效名写进 `transition`
-  - **禁止**把转场名写进 `overlays[].name`（effect）
-  - 文字入出场（`渐显` 等）只能写 `intro`/`outro`，不能当转场或画面特效
-  - 写完 Plan 后必须 `jy-compile validate`；`ok:false` 则改名后重编，**禁止**带着 catalog errors 去 import
+- 全片只用同一个 effect / 同一个 transition / 同一滤镜复制粘贴
+- **同段堆特效**（场景 >1 或人物 >1）；validate 会报错
+- 不看素材套「全程」模板；或只写边框、完全不用滤镜与视频动画
+- **字段错位**（会导致剪映崩溃）：
+  - 转场 → 只进 `junctions.transition`
+  - 场景特效 → 只进 `overlays type=effect`
+  - 人物特效 → 优先 `clips[].character_effect`（也可 effect + `effect_kind=character`）
+  - 滤镜 → 只进 `clips[].filter`（**禁止**当 transition/effect）
+  - 视频入出/组合 → 只进 `clips[].intro|outro|group_animation`
+  - 文字入出/循环/字体 → 只进 text/subtitle overlays（**禁止**把文字 `渐显` 写进 clip 视频 intro）
+  - 写完必须 `jy-compile validate`；`ok:false` 禁止 import
 
 **要求：**
 
-1. 为每段 clip 记 1 句内容标签（如：静物特写 / 全身走秀 / 人物口播 / 快速运镜 / 暗调氛围 / 明亮产品）
-2. 按标签从 [effect-presets.md](references/effect-presets.md)「内容→效果」表选型；相邻段特效尽量不同；选用前用 `jy-compile effects --grep` / `transitions` 核对属于哪一类
-3. 每个 effect overlay 只盖**该段在时间轴上的区间**（`start_ms`/`end_ms` = 该 clip 起止），不要整片一条
-4. 每条 junction 按「前段尾气质 × 后段头气质」选转场；相邻接缝不要重复同一转场
-5. 全局可有**很轻**的统一气质（如偶发 `细闪`），但边框/胶片/故障类必须分段轮换
-6. 少数名字在转场与特效目录**都存在**（如 `故障`、`闪白`）：按**用途**放对字段——接缝用 `junctions.transition`，盖画面用 `overlays.effect`，不要混用语义
-
-交付时简述：每段用了什么特效、每条接缝用了什么转场（各一句即可）。
+1. 为每段记内容标签（静物特写 / 走秀 / 口播 / 快运镜 / 暗调 / 明亮产品…）
+2. 按 [effect-presets.md](references/effect-presets.md)「内容→*」表选滤镜、动画、特效、转场；选用前 `catalog --grep` 核对类别与免费
+3. effect overlay **按段切时间窗**，不要整片一条盖满
+4. 接缝按「前段尾 × 后段头」选转场；相邻接缝不重复
+5. ≥3 段时至少一半片段有视频 intro/outro（或等价 group）；group 只作点睛
+6. **有人物的片段**（口播 / 模特产品展示 / 试穿走秀等）尽量挂 `character_effect`；纯静物无人才默认不加；人物近景场景特效宜轻，避免厚边框挡脸/挡身
+7. 交付简述：每段滤镜/动画/特效、每条接缝转场（各一句）
 
 ### 1.6 字幕与贴纸（按用户需求）
 
-**默认不加。** 仅当用户明确要求（或提供了文案 / 贴纸图）时写入 overlays。
+**默认不加。** 仅当用户明确要求（或提供了文案 / 贴纸图）时写入 overlays。**一旦加字，尽量用上字体与文字动画**（见下表）。
 
 | 需求 | Plan |
 |------|------|
-| 底部说明 / 口播字幕 | `type: "subtitle"`，`text`，`transform_y` 约 `-0.75`，按句或按段切时间窗 |
-| 标题 / 角标大字 | `type: "text"`，字号更大，可放上方 `transform_y` 约 `0.5~0.7` |
-| 关键词高亮 | `keywords`/`keyword` + 可选 `keyword_color`/`keyword_font_size`（简创式富文本） |
-| 文字入/出场 | `intro` / `outro`（如 `渐显`/`渐隐`）；先 `jy-compile text-animations --free` |
-| 贴纸 / 装饰图 | `type: "sticker"` + 本地 `path`（或 `url`）；角标可用 `transform_x/y` + `scale` |
+| 底部说明 / 口播字幕 | `type: "subtitle"`，`text`，`font`（如 `思源中宋`/`抖音美好体`），`transform_y` 约 `-0.75` |
+| 标题 / 角标大字 | `type: "text"`，`font`（英文促销优先 `Anton`；中文 `站酷酷黑体`/`抖音美好体`），字号更大，`transform_y` 约 `0.5~0.7` |
+| 关键词高亮 | `keywords`/`keyword` + `keyword_color`/`keyword_font_size` |
+| 文字入/出场 | overlays 的 `intro` / `outro`（文字目录，如 `渐显`/`弹入`）；`jy-compile catalog --type text-intros --free` |
+| 文字循环 | 标题短窗可用 `loop`（如 `扫光`）；口播字幕默认不加 |
+| 贴纸 / 装饰图 | `type: "sticker"` + 本地 `path`（或 `url`） |
 
 规则：
 
 - 文案要短、可读；避免挡脸 / 挡产品主体
-- 字幕按片段或按句分段，不要一条字幕盖全片除非用户只要一条总标题
-- 需要强调卖点/品牌词时写 `keywords`；不要无意义整句高亮
-- 标题类可加轻入场（`渐显`/`弹入`）；出场可选；默认只用非 VIP
-- 贴纸优先用户提供的透明 PNG；没有图时不要伪造剪映内置 `resource_id`
-- 字段细节见 [references/edit-plan.md](references/edit-plan.md)
+- 字幕按片段或按句分段；不要一条盖全片除非只要总标题
+- 标题类：字体 + 入场（`弹入`/`渐显`）+ 可选 `扫光`；出场可选
+- 贴纸优先用户透明 PNG；不要伪造内置 `resource_id`
+- 字段见 [references/edit-plan.md](references/edit-plan.md)
 
 ### 1.7 BGM（默认开启）
 
@@ -205,7 +224,8 @@ jy-compile import "<draft_dir>" --name "<短横线英文名>"
 | `jy-compile` 不存在 | install-compiler；阻塞 |
 | `where` 失败 | 装剪映或设 `JIANYING_DRAFT_ROOT` |
 | 链接媒体 / 暂无访问权限 | 必须用 `import`（路径改写） |
-| `validate`/`compile` 报转场/特效错位 | 按 errors 改字段：特效名→`overlays.effect`，转场名→`junctions.transition`；改完再 validate |
+| `validate`/`compile` 报目录错位 | 按 errors 改槽位：转场→junction；场景特效→overlay effect；人物→`character_effect`；滤镜→`filter`；视频动画→clip intro/outro/group；文字动画/字体→text overlay；改完再 validate |
+| 报「同段场景/人物特效过多」 | 该段只留 **1** 个场景特效、**1** 个人物特效；删掉重叠时间窗上的多余 overlay |
 | 首页看不到草稿 | 请用户退出重开剪映；核对 `--name` 与本地草稿列表 |
 | VIP 特效无法应用 / 弹窗 | 确认是否有剪映 VIP；无则换免费 preset 并重编；有则请用户登录 VIP 后重开剪映 |
 | 贴纸图打不开 | 检查 path/url；改 PNG；或去掉 sticker overlay |
@@ -216,5 +236,5 @@ jy-compile import "<draft_dir>" --name "<短横线英文名>"
 
 ## 交付话术
 
-> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段特效：…；接缝转场：…；BGM：…；字幕/贴纸：…（若有）。效果均为免费项 / 已按你的剪映 VIP 使用 VIP 素材（二选一如实说明）。  
+> 已写入剪映草稿 `<name>`（默认已配 BGM，除非你要求不要）。分段：滤镜/视频动画/特效…；接缝转场：…；人物特效/字体动画：…（若有）；BGM：…。效果均为免费项 / 已按你的剪映 VIP 使用 VIP 素材（二选一如实说明）。  
 > 请**退出并重开剪映**，在「本地草稿」打开该草稿预览；需要成片时在剪映内自行导出。本流程不自动导出 MP4。

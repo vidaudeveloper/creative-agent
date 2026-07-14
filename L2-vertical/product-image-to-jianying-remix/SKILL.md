@@ -216,11 +216,11 @@ creative_estimate
 **必须加载完整 jianying-remix skill**，按其流程执行（探测 `jy-compile`、写 Edit Plan、校验、编译、导入）。**不要**跑 `jy-compile export`。  
 把已生成片段当作**用户提供视频**交给它；**禁止**在混剪阶段再调 `creative_submit_workflow` / `direct_video`。若用户还要多版转场/特效/BGM，走 jianying-remix **§1.0 批量混剪变体**。
 
-对本流水线的约定：
+对本流水线的约定（混剪须按 jianying-remix §1.5 **尽量用满**滤镜 / 视频入出或组合动画 / 场景特效 / 转场；有字再加字体与文字动画）：
 
-- `clips[]`：按场景顺序放入成功片段的本地 `path`（或 `url`）；`in_ms=0`，`out_ms` 可用满时长（约 4000）
+- `clips[]`：按场景顺序放入成功片段的本地 `path`（或 `url`）；`in_ms=0`，`out_ms` 可用满时长（约 4000）；每段尽量写 `filter` + `intro`/`outro`（或少数段 `group_animation`）；**画面有人**（模特展示/试穿/口播等）尽量加 `character_effect`，不限于口播
 - `junctions`：相邻段按内容气质选不同转场（见 jianying-remix presets）
-- `overlays`：按段选不同轻特效；**默认不加字幕**（用户要再加）
+- `overlays`：按段选不同场景特效；**默认不加字幕**（用户要再加，并配 `font` + 文字 intro）
 - `bgm`：默认开启 → 用户无文件时用 MCP **`creative_generate_bgm`**（不要走曲库 select）
 - 有 BGM 时原片默认静音（编译器自动）
 

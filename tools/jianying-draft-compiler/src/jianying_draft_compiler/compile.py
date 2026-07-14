@@ -6,7 +6,13 @@ import shutil
 import uuid
 from pathlib import Path
 
-from .catalog import resolve_effect, resolve_text_intro, resolve_text_outro, resolve_transition
+from .catalog import (
+    resolve_effect,
+    resolve_text_intro,
+    resolve_text_outro,
+    resolve_transition,
+    validate_edit_plan_catalog,
+)
 from .media import ensure_local_media, ms_to_us, us_to_ms
 from .models import CompileResult, EditPlan
 from .package import write_manifest, zip_draft_dir
@@ -121,6 +127,13 @@ def compile_edit_plan(
     make_zip: bool = True,
 ) -> CompileResult:
     """Compile an Edit Plan into a Jianying draft folder (+ optional zip)."""
+    catalog_errors = validate_edit_plan_catalog(plan)
+    if catalog_errors:
+        raise ValueError(
+            "Edit Plan 转场/特效目录校验失败（错位会导致剪映打开崩溃）:\n- "
+            + "\n- ".join(catalog_errors)
+        )
+
     ensure_engine_on_path()
     import pyJianYingDraft as draft
     from pyJianYingDraft import Timerange, trange
@@ -185,8 +198,10 @@ def compile_edit_plan(
                 try:
                     t_type = resolve_transition(junction.transition)
                     segment.add_transition(t_type, duration=ms_to_us(junction.duration_ms))
-                except ValueError as e:
-                    warnings.append(f"transition '{junction.transition}' skipped: {e}")
+                except (ValueError, KeyError) as e:
+                    raise ValueError(
+                        f"junction after_clip={i} transition invalid: {e}"
+                    ) from e
 
         script.add_segment(segment, track_name)
         placed_segments.append(segment)
@@ -210,9 +225,8 @@ def compile_edit_plan(
         if overlay.type == "effect":
             try:
                 effect_type = resolve_effect(overlay.name or "")
-            except KeyError as e:
-                warnings.append(str(e))
-                continue
+            except (KeyError, ValueError) as e:
+                raise ValueError(f"effect overlay invalid: {e}") from e
             # One track per effect so overlays can stack (Jianying forbids overlap on same effect track).
             effect_track = f"effect_track_{effect_idx}"
             effect_idx += 1

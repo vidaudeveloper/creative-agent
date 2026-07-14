@@ -105,14 +105,22 @@ Compiler 来源与安装：同仓 `tools/jianying-draft-compiler/`，见 [refere
 - 全片只用同一个 `overlays[].name` 盖满时间轴
 - 所有 `junctions` 用同一个 `transition`
 - 不看素材直接套 preset「全程」模板
+- **转场/特效字段错位**（会导致剪映打开草稿崩溃）：
+  - `junctions[].transition` **只能**用 `jy-compile transitions` 目录名（如 `竖向模糊`、`闪白`、`色彩溶解`）
+  - `overlays` 且 `type=effect` 的 `name` **只能**用 `jy-compile effects` 目录名（如 `撕纸涂鸦边框`、`胶片框 III`、`细闪`）
+  - **禁止**把边框/胶片/闪烁等特效名写进 `transition`
+  - **禁止**把转场名写进 `overlays[].name`（effect）
+  - 文字入出场（`渐显` 等）只能写 `intro`/`outro`，不能当转场或画面特效
+  - 写完 Plan 后必须 `jy-compile validate`；`ok:false` 则改名后重编，**禁止**带着 catalog errors 去 import
 
 **要求：**
 
 1. 为每段 clip 记 1 句内容标签（如：静物特写 / 全身走秀 / 人物口播 / 快速运镜 / 暗调氛围 / 明亮产品）
-2. 按标签从 [effect-presets.md](references/effect-presets.md)「内容→效果」表选型；相邻段特效尽量不同
+2. 按标签从 [effect-presets.md](references/effect-presets.md)「内容→效果」表选型；相邻段特效尽量不同；选用前用 `jy-compile effects --grep` / `transitions` 核对属于哪一类
 3. 每个 effect overlay 只盖**该段在时间轴上的区间**（`start_ms`/`end_ms` = 该 clip 起止），不要整片一条
 4. 每条 junction 按「前段尾气质 × 后段头气质」选转场；相邻接缝不要重复同一转场
 5. 全局可有**很轻**的统一气质（如偶发 `细闪`），但边框/胶片/故障类必须分段轮换
+6. 少数名字在转场与特效目录**都存在**（如 `故障`、`闪白`）：按**用途**放对字段——接缝用 `junctions.transition`，盖画面用 `overlays.effect`，不要混用语义
 
 交付时简述：每段用了什么特效、每条接缝用了什么转场（各一句即可）。
 
@@ -197,6 +205,7 @@ jy-compile import "<draft_dir>" --name "<短横线英文名>"
 | `jy-compile` 不存在 | install-compiler；阻塞 |
 | `where` 失败 | 装剪映或设 `JIANYING_DRAFT_ROOT` |
 | 链接媒体 / 暂无访问权限 | 必须用 `import`（路径改写） |
+| `validate`/`compile` 报转场/特效错位 | 按 errors 改字段：特效名→`overlays.effect`，转场名→`junctions.transition`；改完再 validate |
 | 首页看不到草稿 | 请用户退出重开剪映；核对 `--name` 与本地草稿列表 |
 | VIP 特效无法应用 / 弹窗 | 确认是否有剪映 VIP；无则换免费 preset 并重编；有则请用户登录 VIP 后重开剪映 |
 | 贴纸图打不开 | 检查 path/url；改 PNG；或去掉 sticker overlay |

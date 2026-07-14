@@ -76,8 +76,24 @@
 | `aspect` | `9:16` \| `16:9` \| `1:1`；或显式 `width`/`height` |
 | `clips[].path` / `url` | 二选一；优先 path |
 | `in_ms` / `out_ms` | 源内裁剪；`out_ms` 可省略=用到片尾 |
-| `junctions` | 转场挂在 `after_clip` 那段**结尾**；相邻接缝尽量换名 |
-| `overlays` | `effect` / `text` / `subtitle` / `sticker`；时间窗按段切分 |
+| `junctions` | 转场挂在 `after_clip` 那段**结尾**；`transition` **必须**是转场目录名（`jy-compile transitions`）；**禁止**填特效名 |
+| `overlays` | `effect` / `text` / `subtitle` / `sticker`；时间窗按段切分；`type=effect` 的 `name` **必须**是特效目录名（`jy-compile effects`）；**禁止**填转场名 |
+
+## 目录槽位（强制 · 防崩溃）
+
+| Plan 字段 | 允许目录 | 查法 | 反例（禁止） |
+|-----------|----------|------|--------------|
+| `junctions[].transition` | 仅转场 | `jy-compile transitions` | `撕纸涂鸦边框`、`胶片框 III`、`细闪`、`渐显` |
+| `overlays[].name`（`type=effect`） | 仅画面特效 | `jy-compile effects --grep …` | `竖向模糊`、`色彩溶解`（纯转场名） |
+| `overlays[].intro` / `outro` | 文字动画 | `jy-compile text-animations` | 转场名 / 边框特效名 |
+
+写完后务必：
+
+```bash
+jy-compile validate /tmp/vidau-edit-plan.json
+```
+
+`ok: false` 时按 `errors` 改字段，**不要** compile/import 错位 Plan（剪映可能直接崩溃）。
 | `bgm` | 可选；本地/URL 背景音乐，见下 |
 | `mute_original_audio` | 可选；`null`/省略=有 BGM 则静音原片；`false`=保留原声；`true`=强制静音 |
 

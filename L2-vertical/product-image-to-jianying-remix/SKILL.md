@@ -43,7 +43,12 @@ metadata:
 - 入口：并行多次 `creative_submit_workflow`，`workflow_type=direct_video`
 - **不是** `creative_submit_batch_variants`（出图变体）
 - **不是** sync `creative_image_to_video` / `creative_generate_video`
-- 提交后每 **15 秒**轮询，齐套再交给 **jianying-remix**（混剪阶段**禁止**再调 `direct_video`）
+- **严禁升级为** `creative_submit_script2film` / `creative_submit_script2film_keyframes` / `creative_generate_script`
+  - 本流程的「5 段场景」= **5 个独立的 ≤15s `direct_video` job**，再交给剪映混剪
+  - **不是**一条 20–30s 多镜 script2film 成片（那是云端分镜拼接，与剪映混剪路径冲突）
+  - 即便总时长 5×4s≈20s、或用户说「多镜头/多场景」，仍保持 N×`direct_video`，**不要**因 `creative-direct` 的「>15s / multi-shot → script2film」路由而改道
+  - 加载了 `creative-batch-orchestrator` 时：每条 item 必须 `workflow: direct` / `direct_video`，**禁止**用 orchestrator 默认的 `script2film`
+- 提交后每 **15 秒**轮询，齐套再交给 **jianying-remix**（混剪阶段**禁止**再调 `direct_video` / `script2film`）
 
 > 只有产品图 → 本 L2 负责 AI 出片段；已有多段用户视频 → 直接 **jianying-remix**（可 §1.0 批量多版转场/特效/BGM）。
 
@@ -63,7 +68,8 @@ metadata:
 | 只要单条 ≤15s 短视频、不要混剪 | **creative-direct** |
 | 已有多段本地视频，只要混剪 / 多版转场特效 BGM | 直接 **jianying-remix** |
 | 批量生成但无产品图（文生多段） | **creative-direct** / batch-orchestrator — **不要**指望 jianying-remix 出片 |
-| 只要 30s+ 多镜故事成片（云端拼接） | **creative-script2film** |
+| 只要 30s+ 多镜故事成片（云端拼接） | **creative-script2film**（与本 skill **互斥**；用户明确只要云端成片、不要剪映混剪时才走） |
+| Agent 想把 N 段混剪素材合成一条 script2film | **禁止**；坚持 N×`direct_video` |
 
 ---
 
@@ -231,7 +237,7 @@ creative_estimate
 - [ ] 产品图已上传为 HTTPS URL  
 - [ ] 服饰/鞋子时：5 段不同模特 × 不同场景（场景按产品与需求推导，非写死模板）  
 - [ ] N 个场景互不重复，每段独立 Seedance prompt  
-- [ ] 并行 `creative_submit_workflow` × N，`duration_sec=4`  
+- [ ] 并行 `creative_submit_workflow` × N，`duration_sec=4`（**未**调用 script2film / generate_script）  
 - [ ] 每 15s 轮询至全部终态  
 - [ ] 成功片段 URL/本地 path 齐全  
 - [ ] 已加载并跑完 **jianying-remix**（含 BGM 默认）  

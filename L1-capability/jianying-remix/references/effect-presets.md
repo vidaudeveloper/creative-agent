@@ -1,13 +1,16 @@
 # 效果 Preset（默认免费 · 按内容选型）
 
-下列名称均应为目录内 `is_vip=false` 项。选用前可用：
+下列名称均应为目录内对应类别项（**转场≠特效**）。选用前可用：
 
 ```bash
-jy-compile effects --grep <关键词>
-jy-compile transitions --limit 100
+jy-compile effects --grep <关键词>      # 只给 overlays type=effect
+jy-compile transitions --limit 100      # 只给 junctions.transition
 jy-compile text-animations --kind intro --free --limit 40
 jy-compile text-animations --kind outro --free --grep 渐
+jy-compile validate /path/to/plan.json  # 错位会 ok:false，禁止强行编译
 ```
+
+**错位禁止**：边框/胶片/闪烁等 → 只能 effect；溶解/模糊/闪白接缝 → 优先 transition（若一名两用，按用途选字段）。
 
 若用户允许 VIP，可另选 `撕纸拼贴`、`快速缩放`、`复古撕纸` 等（以本机目录 `is_vip` 为准）。**选用前必须提醒用户**：VIP 素材需要本机剪映登录有效 **剪映 VIP 账号**；请用户确认有 VIP 后再写入 Plan，否则坚持免费项。
 

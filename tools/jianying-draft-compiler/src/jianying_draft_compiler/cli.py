@@ -96,12 +96,28 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.cmd == "validate":
+        from .catalog import validate_edit_plan_catalog
         from .models import EditPlan
 
         data = json.loads(args.plan.read_text(encoding="utf-8"))
         plan = EditPlan.model_validate(data)
         w, h = plan.canvas_size()
-        print(json.dumps({"ok": True, "clips": len(plan.clips), "canvas": [w, h]}, ensure_ascii=False))
+        catalog_errors = validate_edit_plan_catalog(plan)
+        if catalog_errors:
+            print(
+                json.dumps(
+                    {"ok": False, "errors": catalog_errors, "clips": len(plan.clips), "canvas": [w, h]},
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 1
+        print(
+            json.dumps(
+                {"ok": True, "clips": len(plan.clips), "canvas": [w, h]},
+                ensure_ascii=False,
+            )
+        )
         return 0
 
     if args.cmd == "transitions":

@@ -79,8 +79,8 @@ def export_draft_via_vision(
     # Dismiss tips if any
     vision.try_click_text(V10["got_it"], mode="equals", retries=1, settle=0.6)
 
-    # Open draft card by OCR title
-    logger.info("OCR locating draft title: %s", draft_name)
+    # Open draft card by OCR title → click thumbnail above title text
+    logger.info("OCR locating draft title: %s (click thumbnail offset_y=%d)", draft_name, -80)
     vision.click_text(
         draft_name,
         mode="draft",
@@ -88,6 +88,7 @@ def export_draft_via_vision(
         retries=8,
         interval=2.0,
         settle=1.0,
+        click_offset_y=-80,
     )
     time.sleep(open_wait)
     vision.activate_jianying_window()

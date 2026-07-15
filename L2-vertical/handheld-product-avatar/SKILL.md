@@ -34,7 +34,7 @@ Turn **product image + selling points** into a vertical UGC-style ad: person **h
 > Pipeline: TTS per shot → parallel async `direct_video` → **§8 Wait-then-poll（强制）** → **§9 ffmpeg concat**.  
 > **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**在本对话内 `sleep(ETA)` → 查 job → 未完成再 `sleep 20s` 循环，直到全部终态后**自动**进拼接。  
 > **禁止**：提交后结束回合、让用户「随时问进度」、只口头说 Wait-then-poll 却不执行 sleep。本门禁 **覆盖** `creative-job-runner` 的 “submit and stop / never sleep”。  
-> Lip sync = Seedance `reference_audio` (not Creatify Aurora).  
+> Lip sync = Seedance `reference_audio` **出镜口播对口型**（not 旁白/画外音；prompt 禁止 narration/旁白措辞）.  
 > **Never** upload recognizable real-face refs unless user accepts privacy risk.
 
 ## When to use
@@ -150,6 +150,7 @@ For **each shot** submit one job (parallel, unique `client_request_id`):
     "reference_image_urls": ["<product>", "<handheld_still>"],
     "reference_video_urls": ["<talent_video?>"],
     "reference_audio_urls": ["<this shot TTS audio_url>"],
+    "reference_audio_role": "lipsync",
     "generate_audio": true
   },
   "client_request_id": "<uuid>"
@@ -157,6 +158,13 @@ For **each shot** submit one job (parallel, unique `client_request_id`):
 ```
 
 MCP: `creative_submit_workflow` with above, **or** `creative_image_to_video` (also async → same `direct_video` job). Prefer batch submit for ≥2 shots.
+
+**口播硬门禁（防旁白）**
+
+- 每镜 **必须** 带本镜 TTS 的 `reference_audio_urls` + **`reference_audio_role: "lipsync"`**（服务端才追加对口型约束；其它 skill 用 `guide` 或不传即可做节拍/旁白引导）
+- Prompt 经 **creative-seedance2-prompt** + [handheld-prompt.md](references/handheld-prompt.md)：写明 **出镜说话 / on-camera lip-sync**，并追加 lipsync suffix  
+- **禁止** prompt 出现：旁白、画外音、voiceover、narration、解说（否则 Seedance 常把参考音频当画外旁白，嘴不动）  
+- `generate_audio: true`（让模型保留人声轨与口型对齐）
 
 **Do not** call `creative_submit_script2film` on this default path.
 

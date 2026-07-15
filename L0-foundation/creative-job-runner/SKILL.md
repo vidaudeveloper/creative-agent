@@ -1,54 +1,57 @@
 ---
 name: creative-job-runner
-description: Use after submit; no poll unless active skill Wait-then-poll
+description: Use after submit; sleep ETA then poll every 20s
 metadata:
   layer: L0-foundation
   requires: []
   tags: [foundation, async, tracking]
 ---
 
-# Creative Job Runner — Submit and return + chat tracking
+# Creative Job Runner — Submit → wait ETA → poll → continue
 
 **All** VidAU image/video skills must follow this tracking protocol after MCP calls.
 
-**Default**: Do not `sleep` or loop `creative_get_job` until completion in chat (script2film may take 10–30 minutes).
+**Default (async)**: After submit, notify the user, then run a **background wait**: sleep for the job’s estimated time, then poll every **20s** until terminal, then **continue** the skill’s next steps in the same session.
 
-**Exception (wins over default)**: If the **active** skill defines **Wait-then-poll** (e.g. **handheld-product-avatar** §8, product→jianying remix), you **MUST** sleep + poll per that skill. Do **not** end the turn with “ask me for progress.” The L2 schedule overrides this L0 default.
+**Skill override**: An active L1/L2 skill may tighten intervals, ETA fallback, or timeout (e.g. handheld §8, product→jianying remix). Overrides may only make waiting **stricter or more specific** — they must **not** revert to “submit and stop / ask user to ping.”
 
 ## When to enable automatically
 
 | MCP tool | Tracking mode |
 |----------|---------------|
-| `creative_submit_*` | **Chat tracking** by default — reply after submit; user can ask for progress |
-| `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` | **Async** — returns `job_id`; default chat tracking |
+| `creative_submit_*` | **Async** — `job_id`; default Wait-then-poll |
+| `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` | **Async** — `job_id`; default Wait-then-poll |
 | `creative_generate_image` (and TTS/BGM sync tools) | **Sync** — tell estimated time before call; read `tracking.user_message` when done |
-| Any tool returning `job_id` | Chat tracking **unless** the active L2 skill mandates Wait-then-poll |
+| Any tool returning `job_id` | Wait-then-poll unless the active skill defines a stricter schedule |
 
 ## Async job standard flow (default)
 
-1. **On submit** — read `tracking.user_message` from response, **send to user immediately** (job_id, estimated credits/time); tell user they can ask for progress anytime in this thread.
-2. **End the turn** — when `tracking.should_continue_polling` is `false`, **do not** call `creative_get_job`, **do not** `sleep` — **unless** the active skill says Wait-then-poll.
-3. **Progress checks** — when user asks in this thread, call `creative_get_job` or `creative_list_jobs` once and answer; **no** auto sleep/polling loops (default).
-4. **User follow-up** — single `creative_get_job` or `creative_list_jobs` per question; still **no** polling loop (default).
-5. **Cancel** — user says "cancel" → `creative_cancel_job`.
+1. **On submit** — read `tracking.user_message` from response, **send to user immediately** (job_id, estimated credits/time). Say generation is running in the background and you will continue when ready.
+2. **Background wait** — `sleep` once for **ETA**:
+   - Prefer `estimate.eta_sec` from the submit response (or max ETA across a batch).
+   - Fallback if missing: **180s** (video) / skill-stated fallback.
+   - Do **not** busy-poll before ETA ends.
+3. **Poll** — call `creative_get_job` (or `creative_list_jobs` for a batch). If still `queued` / `running` → `sleep 20s` → query again.
+4. **Continue** — when job(s) are terminal (`completed` / `failed` / `cancelled`):
+   - `completed` → deliver artifacts (or run the skill’s next step: concat, mux, remix, etc.) **in the same session**.
+   - `failed` / `cancelled` → report error; offer retry with a new `client_request_id`.
+5. **Timeout** — stop after ~**30 min** total after the first post-ETA poll; list unfinished `job_id`s.
+6. **User mid-wait** — if the user asks status while waiting, answer with one query round, then **resume** the 20s loop (do not abandon it).
+7. **Cancel** — user says "cancel" → `creative_cancel_job`.
 
-## Wait-then-poll (skill override — mandatory when skill says so)
+### Batch / multi-job
 
-When the active skill requires it (e.g. **handheld-product-avatar** after batch video submit):
-
-1. After submit, notify user with job_ids + ETA.
-2. **Call sleep** once for **max ETA** (from `estimate.eta_sec`; skill fallback, often 180s).
-3. Query all jobs; if all terminal → continue that skill’s next step (concat / remix) **in the same session**.
-4. Else sleep **interval from that skill** (handheld = **20s**) and query again until done or skill timeout.
-5. **Do not** end the turn after step 1. **Do not** ask the user to ping you for progress as a substitute for sleep+poll.
+- `wait_sec = max(estimate.eta_sec)` across submitted jobs (fallback 180s).
+- After ETA, poll all non-terminal jobs every 20s until **all** are terminal, then continue.
 
 ## vs old behavior
 
-| ❌ Forbidden (default path) | ✅ Default now | ✅ Wait-then-poll skills |
-|----------------------------|----------------|-------------------------|
-| Busy-poll every 10s forever | Return after submit | Sleep ETA → poll → continue skill |
-| Ignore job_id | Confirm submit + job_id | Same, **then** auto-wait |
-| — | Query only when user asks | Agent drives sleep+poll loop |
+| ❌ Forbidden | ✅ Default now |
+|-------------|----------------|
+| End turn after submit; “ask me for progress anytime” as the only path | Notify → sleep ETA → poll 20s → continue |
+| Busy-poll every few seconds from t=0 | Sleep full ETA first, then 20s interval |
+| Ignore `job_id` / never follow up | Keep `job_id`s until delivery or skill next step |
+| Stop after notify and wait for user ping | Agent drives the wait/poll loop |
 
 ## Sync generation (image / audio only)
 
@@ -56,15 +59,16 @@ When the active skill requires it (e.g. **handheld-product-avatar** after batch 
 
 After tool returns, deliver `tracking.user_message` + artifact URLs. VIP or coin errors → follow **creative-platform** billing rules.
 
-**Video is never sync** — tools return `job_id`. Default: confirm submit, wait for user follow-up. **Exception**: skills with Wait-then-poll (e.g. handheld-product-avatar) **must** auto-wait ETA then poll.
+**Video is never sync** — tools return `job_id`. Always use the async Wait-then-poll flow above.
 
 ## Agent behavior
 
-- Follow `tracking.agent_action` literally; if it says "no polling", do not ignore — **except** when active skill Wait-then-poll overrides.
+- Prefer this L0 schedule over `tracking.agent_action` / `should_continue_polling` that say “no polling” — those fields reflected the old chat-only mode. Still use `tracking.user_message` for user-facing copy.
 - **Do not** send task dashboard links; progress stays in this chat.
 - User says "my jobs" → `creative_list_jobs` and show list in chat.
+- Progress tips: brief status every 1–2 poll rounds (e.g. `3/5 done`); do not spam.
 
 ## Delivery
 
-- When job is `completed` and user is still in thread, deliver `artifacts[0].urls.download` + local save hint.
+- When job is `completed`, deliver `artifacts[0].urls.download` + local save hint (or hand off to the active skill’s next step).
 - `delivery.mode=both` (default): URL + `local.suggested_filename` / `suggested_subpath`

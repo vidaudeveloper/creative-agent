@@ -42,7 +42,7 @@ metadata:
 
 ## Video generation (async only)
 
-1. Tell user: "Submitting video job, ~2–5 minutes; ask me for progress anytime."
+1. Tell user: "Submitting video job, ~2–5 minutes; I'll continue when it's ready."
 2. **Load creative-seedance2-prompt** — craft production-grade `prompt`
 3. With user reference images → **`creative_image_to_video`**:
    - `prompt`: Seedance prompt
@@ -50,7 +50,7 @@ metadata:
    - optional `reference_audio_urls` / `reference_video_urls`
 4. Without refs → `creative_generate_video` (text-to-video)
 5. First/last frame → `creative_first_frame_to_video`
-6. Response is **`job_id` + tracking** — **not** artifacts. Follow **creative-job-runner**: reply immediately; poll only when user asks.
+6. Response is **`job_id` + tracking** — **not** artifacts. Follow **creative-job-runner**: notify → sleep ETA → poll every 20s → deliver on complete.
 
 Equivalent: `creative_submit_workflow` with `workflow_type=direct_video` and the same fields under `input`.
 

@@ -19,7 +19,7 @@ Default render for handheld talking-head. Each shot = one Seedance clip; Hermes 
   "duration_sec": 6,
   "aspect_ratio": "9:16",
   "video_mode": "reference",
-  "reference_image_urls": ["https://…/product.jpg", "https://…/talent.jpg"],
+  "reference_image_urls": ["https://…/product.jpg", "https://…/handheld-still.jpg"],
   "reference_video_urls": ["https://…/talent.mp4"],
   "reference_audio_urls": ["https://…/vo-01.mp3"],
   "generate_audio": true
@@ -27,7 +27,7 @@ Default render for handheld talking-head. Each shot = one Seedance clip; Hermes 
 ```
 
 - Lipsync speaking shot: **always** set `reference_audio_urls` to that shot’s TTS  
-- Default handheld: every item is a speaking shot (face + product)  
+- Default handheld: every item is a speaking shot (face + product); image refs = product + **confirmed handheld still**  
 - Product-only B-roll: **only if user asked**; images only; `generate_audio` true/false OK  
 - Max **3** `reference_video_urls`; max **9** images  
 
@@ -63,16 +63,18 @@ Map each item → `creative_submit_workflow` `workflow_type=direct_video` + uniq
 
 `creative_image_to_video` with the same fields (also async → `job_id`). Still follow **Wait-then-poll** below.
 
-## Wait-then-poll (required after video submit)
+## Wait-then-poll（强制主步骤 — 与 SKILL.md §8 同级）
 
-**This skill overrides** creative-job-runner’s “submit and end turn / no poll”.
+**Required after every video submit on this skill. Not optional. Not “reference only.”**
+
+**Overrides** `creative-job-runner` “submit and end turn / never sleep/poll”.
 
 ```text
 submit all shot jobs (parallel)
   → notify user (job_ids + ETA)
-  → sleep once for max(estimate.eta_sec)  // fallback 180s
+  → sleep once for max(estimate.eta_sec)  // fallback 180s  ← MUST call sleep tool
   → query all job_ids
-  → if all terminal → concat (or report failures)
+  → if all terminal → concat (or report failures)  ← MUST continue same session
   → else sleep 20s → query again → loop until all terminal
 ```
 
@@ -80,13 +82,20 @@ submit all shot jobs (parallel)
 |------|--------|
 | 1 | Collect each submit’s `job_id` + `estimate.eta_sec` |
 | 2 | `wait_sec = max(etas)` or **180** if none |
-| 3 | Background sleep `wait_sec` (scheduled wait — not chat idle forever without a plan) |
+| 3 | **Call sleep / scheduled wait** for `wait_sec` — do **not** end the turn |
 | 4 | `creative_get_job` each id (or one `creative_list_jobs` + filter) |
-| 5 | All `completed` → download + ffmpeg concat (§ below) |
+| 5 | All `completed` → download + ffmpeg concat (§ below) **immediately** |
 | 6 | Any non-terminal → sleep **20s**, goto 4 |
 | 7 | Timeout ~**30 min** total after first poll → stop, list unfinished `job_id`s |
 
-User may still ask for status mid-wait; answer with one query round, then resume the 20s loop.
+**Forbidden**
+
+- Ending the turn after submit with “你可以随时问我进度”
+- Describing this section without executing sleep + query
+- Deferring poll to the user / cron / later message
+
+User may still ask for status mid-wait; answer with one query round, then **resume** the 20s loop (do not stop the loop).
+
 
 ## Tracking table
 

@@ -232,16 +232,16 @@ Submit only after user confirms.
 }
 ```
 
-After submit, send summary: `Submitted N async jobs` + each `job_id`; tell user they can ask for progress in this thread.
+After submit, send summary: `Submitted N async jobs` + each `job_id`; say you will continue when the batch is ready.
 
 ### 4. Tracking (creative-job-runner extension)
 
-1. **No** sleep / `creative_get_job` loops; send `tracking.user_message` per submit
-2. Tell user they can ask for whole-batch or single-job progress anytime
-3. When user asks, **once** `creative_list_jobs` or `creative_get_job` for specific `job_id`
-4. When all terminal → deliver batch result table (§5)
+1. Send `tracking.user_message` per submit (keep all `job_id`s)
+2. Follow **creative-job-runner**: `sleep(max ETA)` → poll every **20s** until all terminal
+3. User may ask mid-wait; answer once (`creative_list_jobs` / `creative_get_job`), then **resume** the loop
+4. When all terminal → deliver batch result table (§5) and continue any skill next step
 
-**Do not wait in chat**; keep all `job_id`s — user can query anytime.
+**Do not** end the turn after submit and wait for the user to ping.
 
 ### 5. Delivery
 

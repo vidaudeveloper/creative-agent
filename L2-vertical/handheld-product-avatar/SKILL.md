@@ -32,8 +32,8 @@ Turn **product image + selling points** into a vertical UGC-style ad: person **h
 > **禁止**只出无产品的纯人物定妆图给用户确认 — 效果图必须已含产品。  
 > **Default render path**: **batch direct video** (per-shot Seedance) — **not** `creative_submit_script2film`.  
 > Pipeline: TTS per shot → parallel async `direct_video` → **§8 Wait-then-poll（强制）** → **§9 ffmpeg concat**.  
-> **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**在本对话内 `sleep(ETA)` → 查 job → 未完成再 `sleep 20s` 循环，直到全部终态后**自动**进拼接。  
-> **禁止**：提交后结束回合、让用户「随时问进度」、只口头说 Wait-then-poll 却不执行 sleep。本门禁 **覆盖** `creative-job-runner` 的 “submit and stop / never sleep”。  
+> **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**在本对话内按 **creative-job-runner**（`sleep(ETA)` → 查 job → 未完成再 `sleep 20s`）循环，直到全部终态后**自动**进拼接。  
+> **禁止**：提交后结束回合、让用户「随时问进度」、只口头说 Wait-then-poll 却不执行 sleep。  
 > Lip sync = Seedance `reference_audio` **出镜口播对口型**（not 旁白/画外音；prompt 禁止 narration/旁白措辞）.  
 > **Never** upload recognizable real-face refs unless user accepts privacy risk.
 
@@ -170,9 +170,9 @@ MCP: `creative_submit_workflow` with above, **or** `creative_image_to_video` (al
 
 **提交完成后禁止结束回合** — 立刻进入 **§8**（不得只回复 job 表并等用户来问）。
 
-### 8. Wait-then-poll（强制主步骤 — 覆盖 job-runner）
+### 8. Wait-then-poll（强制主步骤 — 对齐 job-runner 后继续拼接）
 
-**必做，不是参考可选。** Overrides `creative-job-runner` “submit and stop / never sleep/poll”。
+**必做，不是参考可选。** 遵循 **creative-job-runner** 默认协议，完成后**必须**进 §9。
 
 全部镜头 job 提交成功后，**同一回合内**执行：
 
@@ -190,7 +190,7 @@ MCP: `creative_submit_workflow` with above, **or** `creative_image_to_video` (al
 - 提交后结束回合，说「你可以随时问我进度」
 - 只描述 Wait-then-poll 却不调用 sleep / 不查 job
 - 把轮询推给用户、cron、或「以后再查」
-- 因加载了 `creative-job-runner` 而跳过本步
+- 查完终态却不进入 §9
 
 细节表见 [batch-direct-video.md](references/batch-direct-video.md) § Wait-then-poll — 与本节等效，**不可**因「写在 references」而跳过。
 

@@ -70,7 +70,7 @@ Map each item → `creative_submit_workflow` `workflow_type=direct_video` + uniq
 
 **Required after every video submit on this skill. Not optional. Not “reference only.”**
 
-**Overrides** `creative-job-runner` “submit and end turn / never sleep/poll”.
+Follows **creative-job-runner** (sleep ETA → poll 20s); then **must** continue to concat in the same session.
 
 ```text
 submit all shot jobs (parallel)

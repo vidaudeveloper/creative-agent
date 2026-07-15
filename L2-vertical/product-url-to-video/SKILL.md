@@ -25,6 +25,7 @@ Before submitting final render, pick **L1 video skill** from user intent:
 | Product short; hero must match main image (**default**) | **creative-script2film** | `creative_submit_script2film` |
 | Emphasis on shot transitions, camera motion, cinematic feel | **creative-script2film-keyframes** | `creative_submit_script2film_keyframes` |
 | Single 5–15s demo clip only, no multi-shot | **creative-direct** | `creative_image_to_video` or `creative_first_frame_to_video` |
+| Handheld talking-head / 口播数字人 + product in hand | **handheld-product-avatar** | `creative_generate_tts` + `creative_submit_script2film` (`voiceover_mode=lipsync`) |
 | A/B test multiple hook **images** | **trend-viral-short** | `creative_submit_batch_variants` |
 
 **Decision shorthand**:
@@ -132,6 +133,8 @@ Ask user:
 4. **Reference images**: default scraped hero (up to 3)
 
 If user only pasted URL, default → **script2film 30s vertical product short**.
+
+If user wants **handheld talking-head / 口播数字人** after scrape → load **handheld-product-avatar** (product image + VO lipsync path).
 
 ---
 

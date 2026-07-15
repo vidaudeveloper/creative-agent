@@ -153,3 +153,28 @@ skills:
       - creative_mux_bgm_into_video
       - creative_get_job
       - creative_estimate
+
+  - id: handheld-product-avatar
+    layer: L2-vertical
+    path: L2-vertical/handheld-product-avatar
+    title: Handheld Product Talking Avatar
+    tags: [ecommerce, avatar, handheld, voiceover, ugc, lipsync]
+    requires:
+      [
+        creative-platform,
+        creative-job-runner,
+        creative-seedance2-prompt,
+        creative-gpt-image2-prompt,
+        creative-narrative-router,
+        creative-direct,
+        creative-batch-orchestrator,
+      ]
+    mcp_tools:
+      - creative_generate_tts
+      - creative_generate_script
+      - creative_generate_image
+      - creative_image_to_video
+      - creative_submit_workflow
+      - creative_estimate
+      - creative_get_job
+      - creative_list_jobs

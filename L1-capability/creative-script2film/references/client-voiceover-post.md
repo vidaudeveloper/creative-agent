@@ -1,29 +1,44 @@
 # Client voiceover & subtitles (Hermes terminal)
 
-Server delivers **video + BGM only**. TTS and subtitle burn-in run on the **Hermes agent terminal** (local TTS config + ffmpeg).
+Two voiceover paths are supported. Choose by whether an on-screen person needs lip sync.
 
-## When to enable
+| `voiceover_mode` | When | Server behavior | Client post |
+|------------------|------|-----------------|-------------|
+| **`mux`** (default) | No lip sync needed (product B-roll, off-camera VO) | Silent Seedance shots; BGM only | Mux TTS + optional subtitles |
+| **`lipsync`** | Real person / avatar talking on camera | TTS audio → Seedance `reference_audio`; VO baked in | Skip VO mux; optional subtitles only |
 
 Ask the user before script submit:
 
 | Flag | Meaning |
 |------|---------|
-| `voiceover_enabled` | Per-shot narration; server disables Seedance in-shot audio |
-| `subtitles_enabled` | Burn subtitles with ffmpeg after VO mux (same text as voiceover) |
+| `voiceover_enabled` | Enable narration |
+| `voiceover_mode` | `mux` \| `lipsync` |
+| `subtitles_enabled` | Burn subtitles with ffmpeg after (same text as voiceover) |
 
 If `voiceover_enabled=true`, you **must** build `voiceover_shot_plan` before `creative_submit_script2film`.
 
-## 1. Check local TTS
+## Mode selection (routing)
 
-Read `~/.hermes/config.yaml` → `tts:` (provider + voice), or run Hermes TTS check if available.
+- User says 对口型 / talking head / 真人出境说话 / handheld avatar speaking → **`lipsync`**
+- User says 旁白 / 画外音 / 产品展示配音 / no face talking → **`mux`**
 
-If no TTS provider is configured → **stop** and tell the user to configure TTS (Edge / ElevenLabs / MiniMax / local Piper, etc.). Do not submit with `voiceover_enabled`.
+## 1. TTS source
 
-## 1b. Check local ffmpeg (before submit if `subtitles_enabled`, always before post-process)
+### Option A — MCP paid TTS (recommended for lipsync)
 
-VO mux needs **any** recent `ffmpeg` + `ffprobe`. Subtitle burn-in needs ffmpeg built **with libass** (`subtitles` filter).
+Call `creative_generate_tts` per shot → get `audio_url` → put into `voiceover_shot_plan[].audio_url`.
 
-**Run once** (or when user enables subtitles):
+### Option B — Hermes local TTS (mux-friendly)
+
+Read `~/.hermes/config.yaml` → `tts:`. If missing and mode is **mux** → stop and ask user to configure, **or** use `creative_generate_tts` instead.
+
+For **lipsync**, if `audio_url` is omitted the **server** will generate TTS via Runware (needs `RUNWARE_API_KEY`).
+
+## 1b. Check local ffmpeg (mux / subtitles)
+
+VO mux needs **any** recent `ffmpeg` + `ffprobe`. Subtitle burn-in needs ffmpeg with libass.
+
+**Skip VO mux** when `voiceover_mode=lipsync` (audio already driven into the video). Still need ffmpeg for optional subtitles.
 
 ```bash
 command -v ffmpeg ffprobe
@@ -32,28 +47,17 @@ ffmpeg -filters 2>/dev/null | grep -E '^[^ ]+.*subtitles' || echo "MISSING_SUBTI
 
 | Result | Action |
 |--------|--------|
-| `ffmpeg` / `ffprobe` not found | **Stop** — tell user to install ffmpeg; do not start post-process |
-| VO only (`subtitles_enabled=false`) | Standard Homebrew `ffmpeg` is OK |
-| Subtitles enabled + `MISSING_SUBTITLES_FILTER` | **Stop before burn** — install libass-enabled ffmpeg (see macOS below); **do not** run obsolete `brew install ffmpeg --with-libass` |
+| `ffmpeg` / `ffprobe` not found | **Stop** for mux/subtitles — tell user to install ffmpeg |
+| VO mux only | Standard Homebrew `ffmpeg` is OK |
+| Subtitles + `MISSING_SUBTITLES_FILTER` | Install `ffmpeg-full` (see below) |
 
 ### macOS (Homebrew)
-
-Regular `brew install ffmpeg` **does not** include libass. For subtitles:
 
 ```bash
 brew install ffmpeg-full
 export FFMPEG_BIN=/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg
 export FFPROBE_BIN=/opt/homebrew/opt/ffmpeg-full/bin/ffprobe
-
-# Verify subtitle filter
-$FFMPEG_BIN -filters 2>/dev/null | grep subtitles
 ```
-
-Use `$FFMPEG_BIN` / `$FFPROBE_BIN` in all post-process commands below when set.
-
-**Do not use** deprecated flags: `--with-libass`, `--with-freetype`, etc. — they fail on current Homebrew and cause silent hangs while the agent retries.
-
-If subtitle ffmpeg is missing and user wants delivery now → **mux VO first**, tell user subtitles are blocked pending `ffmpeg-full`, deliver `final-vo.mp4` without waiting on failed brew loops.
 
 ## 2. Generate script with VO copy
 
@@ -69,59 +73,68 @@ If subtitle ffmpeg is missing and user wants delivery now → **mux VO first**, 
 
 Parse `## Voiceover Copy` from `spec_markdown` — one line per shot, in order.
 
-## 3. Local TTS + duration (before submit)
+## 3. Build voiceover_shot_plan (before submit)
 
 For each shot line:
 
-1. Synthesize to `vo-NN.mp3` (Hermes `tts_tool` / configured provider).
-2. Measure duration: `ffprobe -v error -show_entries format=duration -of csv=p=0 vo-NN.mp3`
-3. `duration_sec = clamp(ceil(measured + 0.4), 4, 12)` (Seedance shot limits).
+1. Synthesize TTS (`creative_generate_tts` or local) → `vo-NN.mp3` / `audio_url`
+2. Measure duration: `ffprobe …`
+3. `duration_sec = clamp(ceil(measured + 0.4), 4, 12)`
 
-Save a **voiceover manifest** in the workspace (for post-process):
+### mux submit
 
 ```json
 {
-  "locale": "zh-CN",
-  "shots": [
+  "voiceover_enabled": true,
+  "voiceover_mode": "mux",
+  "voiceover_shot_plan": [
+    { "index": 1, "text": "…", "duration_sec": 6 }
+  ]
+}
+```
+
+### lipsync submit
+
+```json
+{
+  "voiceover_enabled": true,
+  "voiceover_mode": "lipsync",
+  "voiceover_shot_plan": [
     {
       "index": 1,
       "text": "…",
-      "audio_path": "vo-01.mp3",
       "duration_sec": 6,
-      "start_sec": 0
+      "audio_url": "https://…/vo-01.mp3"
     }
   ]
 }
 ```
 
-Recompute `start_sec` as cumulative sum of prior `duration_sec`.
+Omit `audio_url` only if you want the **server** to call TTS (lipsync). Prefer providing `audio_url` for predictable timing.
 
-If sum of `duration_sec` differs from `target_duration_sec` by >3s, warn the user and adjust copy or re-TTS before submit.
+Save a local **voiceover manifest** for mux post-process (same as before).
 
-## 4. Submit with client shot plan
+If sum of `duration_sec` differs from `target_duration_sec` by >3s, warn and adjust before submit.
 
-```json
-{
-  "creative_submit_script2film": {
-    "script": "<confirmed spec_markdown>",
-    "target_duration_sec": 30,
-    "aspect_ratio": "9:16",
-    "voiceover_enabled": true,
-    "subtitles_enabled": true,
-    "voiceover_shot_plan": [
-      { "index": 1, "text": "Shot 1 VO line", "duration_sec": 6 },
-      { "index": 2, "text": "Shot 2 VO line", "duration_sec": 8 }
-    ],
-    "client_request_id": "<uuid>"
-  }
-}
-```
+## 4. After job completes
 
-Server uses **`voiceover_shot_plan` durations as authoritative** (no re-normalization). Job `progress.shots[]` includes `voiceover_text` + `duration_sec` for client post-process.
+| Mode | Client action |
+|------|----------------|
+| `mux` | Download master → mux `vo-NN.mp3` by shot offsets → optional subtitles |
+| `lipsync` | Download master (VO already in video) → optional subtitles only; **do not** remux VO |
+
+Server job message for lipsync: 「口播已由 reference_audio 对口型，无需再混 VO」.
+
+### Mux voiceover (example)
+
+Use the existing adelay/amix recipe below only when `voiceover_mode=mux`.
 
 ## 5. After job completes — local post-process
 
-Download `artifacts[0].urls.download` (BGM mixed master). Use saved `vo-NN.mp3` files (or re-TTS from `progress.shots[].voiceover_text`).
+Download `artifacts[0].urls.download` (BGM mixed master).
+
+- **`mux`**: Use saved `vo-NN.mp3` (or re-TTS from `progress.shots[].voiceover_text`).
+- **`lipsync`**: Skip VO mux; optional subtitles only.
 
 **Preflight again** (§1b) if you have not verified ffmpeg this session. If check fails → reply to user immediately with fix steps; **do not** spawn background `brew` without telling the user what step you are on.
 
@@ -140,9 +153,9 @@ Rules:
 - If blocked (missing TTS, missing libass ffmpeg) → say so explicitly; offer VO-only delivery or install command.
 - After each major step completes → one short checkpoint message (e.g. "✓ 口播混音完成 → final-vo.mp4").
 
-### Mux voiceover (example)
+### Mux voiceover (ffmpeg)
 
-Use `${FFMPEG_BIN:-ffmpeg}` and `${FFPROBE_BIN:-ffprobe}` when set.
+Use `${FFMPEG_BIN:-ffmpeg}` and `${FFPROBE_BIN:-ffprobe}` when set. **Only for `voiceover_mode=mux`.**
 
 Offsets from `progress.shots` or manifest `start_sec`:
 
@@ -177,10 +190,12 @@ Deliver `final-vo-sub.mp4` to the user with local save hint.
 | Step | Where |
 |------|--------|
 | Script / VO copy | Server `creative_generate_script` |
-| TTS + measure duration | **Hermes client** |
+| TTS + measure duration | Client (`creative_generate_tts` or Hermes) — or server auto-TTS in lipsync |
 | Shot duration for video gen | Server (from `voiceover_shot_plan`) |
 | Keyframes / video / concat / BGM | Server |
-| VO mux + subtitles | **Hermes client ffmpeg** |
+| `lipsync` reference_audio | Server Seedance |
+| VO mux | **Client only when `mux`** |
+| Subtitles | **Hermes client ffmpeg** |
 
 ## Troubleshooting
 
@@ -190,3 +205,4 @@ Deliver `final-vo-sub.mp4` to the user with local save hint.
 | `Error: invalid option: --with-libass` | Obsolete Homebrew flags | Use `brew install ffmpeg-full` (§1b) |
 | `libass` installed but subtitles still fail | ffmpeg not linked to libass | Use `ffmpeg-full` binary path via `FFMPEG_BIN` |
 | Long brew with no chat update | Agent violated progress rules | Stop retry loop; tell user blocker + offer VO-only deliverable |
+| lipsync but no mouth sync | Missing `audio_url` / wrong mode | Set `voiceover_mode=lipsync` and pass per-shot `audio_url` |

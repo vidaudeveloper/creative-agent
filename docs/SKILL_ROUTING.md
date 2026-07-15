@@ -44,6 +44,8 @@ Use when <触发信号>; NOT <易混替代>
 description: Use when user pastes product page URL to make ad video
 description: Use when ≤15s clip/image; NOT multi-shot or product URL
 description: Use when batch TikTok/Reels hook IMAGE variants to A/B
+description: Use when 人物口播/handheld product VO; NOT still-life
+description: Use when 16–120s multi-shot; NOT ≤15s or 人物口播
 ```
 
 ## 新增「导演/广告节奏」时的结构建议

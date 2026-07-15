@@ -188,16 +188,16 @@ creative_estimate
 
 ## 6. 后台轮询（每 15 秒）
 
-**本 skill 强制轮询**（例外于 creative-job-runner 的「提交即停」）：
+**本 skill 在 L0 Wait-then-poll 之上收紧间隔**（先 ETA，再每 **15s** 轮询，完成后自动进混剪）：
 
-1. 记下全部 `job_id`
-2. 告知用户：「批量生成中，后台每 15 秒检查；全部完成后自动进入剪映混剪」
-3. 循环：
-   - `sleep` / 等待 **15 秒**
+1. 记下全部 `job_id` + `estimate.eta_sec`
+2. 告知用户：「批量生成中；预计时间后后台检查，全部完成后自动进入剪映混剪」
+3. `sleep(max ETA)`（缺省 180s）— 不要在 ETA 前忙轮询
+4. 循环：
    - 对每个未终态 job 调用 `creative_get_job`
-   - 状态：`queued` / `running` → 继续；`completed` → 收 artifact；`failed` / `cancelled` → 记失败原因
-4. 退出条件：全部 job 为 `completed` / `failed` / `cancelled`
-5. 轮询期间可向用户推送简短进度（如 `3/5 完成`），避免刷屏——大约每 1–2 轮汇总一次即可
+   - 状态：`queued` / `running` → `sleep 15s` 再查；`completed` → 收 artifact；`failed` / `cancelled` → 记失败原因
+5. 退出条件：全部 job 为 `completed` / `failed` / `cancelled`
+6. 轮询期间可向用户推送简短进度（如 `3/5 完成`），避免刷屏——大约每 1–2 轮汇总一次即可
 
 ### 结果处理
 

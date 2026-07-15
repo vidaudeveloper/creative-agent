@@ -26,7 +26,7 @@ Before submitting final render, pick **L1 video skill** from user intent:
 | Emphasis on shot transitions, camera motion, cinematic feel | **creative-script2film-keyframes** | `creative_submit_script2film_keyframes` |
 | Single 5–15s demo clip only, no multi-shot | **creative-direct** | `creative_image_to_video` or `creative_first_frame_to_video` |
 | Handheld talking-head / 口播数字人 + product in hand | **handheld-product-avatar** | `creative_generate_tts` + `creative_submit_script2film` (`voiceover_mode=lipsync`) |
-| A/B test multiple hook **images** | **trend-viral-short** | `creative_submit_batch_variants` |
+| A/B test multiple hook **images** | **trend-viral-short** → **creative-batch-orchestrator** | N× `direct_image` |
 
 **Decision shorthand**:
 - Has product hero, must "look like this SKU" → **reference** (creative-script2film)
@@ -196,14 +196,10 @@ creative_submit_script2film_keyframes:
 
 ### Alt: batch hook variants
 
-User wants A/B hook tests → **trend-viral-short** or:
+User wants A/B hook tests → **trend-viral-short** → **creative-batch-orchestrator**:
 
-```
-creative_submit_batch_variants:
-  prompt: "<product name + selling points + trend hook; English often works well>"
-  count: 5
-  aspect_ratio: "9:16"
-```
+1. Craft **N distinct prompts** via **creative-gpt-image2-prompt**
+2. Submit N× `creative_submit_workflow` (`direct_image`) with shared hero `reference_urls`
 
 ### Alt: single image / single video
 

@@ -25,7 +25,7 @@ Map user intent → template + craft emphasis.
 | Skill | MCP | Prompt source |
 |-------|-----|---------------|
 | creative-direct | `creative_generate_image` | This skill → `prompt` |
-| trend-viral-short | `creative_submit_batch_variants` | This skill → `prompt` (+ variant hooks) |
+| trend-viral-short | batch → N× `direct_image` | This skill → **one prompt per variant** |
 | product-url-to-video | hero still if needed | This skill before image MCP |
 | creative-batch-orchestrator | `direct_image` | This skill per item |
 

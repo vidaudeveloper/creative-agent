@@ -9,7 +9,7 @@ metadata:
 
 # Creative Batch Orchestrator
 
-Group **multiple independent generation jobs** into one batch. **Same or mixed skills** (script2film, keyframes, direct video, batch image variants, etc.) — parallel submit, unified tracking and delivery.
+Group **multiple independent generation jobs** into one batch. **Same or mixed skills** (script2film, keyframes, direct video, direct image, etc.) — parallel submit, unified tracking and delivery.
 
 > **Requires**: load **creative-job-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
 > **Prompt gate**: For every item that hits image/video MCP, load **creative-gpt-image2-prompt** or **creative-seedance2-prompt** and craft `prompt` **before** submit — never raw user text.
@@ -20,14 +20,14 @@ Group **multiple independent generation jobs** into one batch. **Same or mixed s
 
 - A/B same product across render modes (reference vs keyframes vs direct)
 - Multiple products / scripts in one run
-- Multiple distinct prompts as separate `direct_image` jobs
-- Mixed batch: 3× script2film + 5× direct_video + 2× batch_variants images
+- Multiple distinct prompts as separate `direct_image` / `direct_video` jobs (e.g. 10 product stills = 10 prompts)
+- Mixed batch: 3× script2film + 5× direct_video + 2× direct_image
 - Ops daily drops: submit batch, track in background — no need to wait per item
+- L2 **trend-viral-short**: expand into N× `creative-direct-image` items (one prompt each)
 
 ## When not to use
 
 - Single task → use the matching L1/L2 skill directly, no batch wrapper
-- Single job (`count=N` variants is still one job) → use L1/L2 skill directly
 - User wants a single clip → **creative-direct** (video still async `job_id`; image may be sync)
 
 ---
@@ -65,20 +65,19 @@ items:
       aspect_ratio: "9:16"
       reference_image_urls: ["https://..."]
 
-  - label: "Hero image — direct"
+  - label: "Hero image — neon shelf"
     skill: creative-direct-image
     input:
-      prompt: "..."
+      prompt: "..."                         # distinct prompt per item
       aspect_ratio: "9:16"
       reference_urls: ["https://..."]
 
-  - label: "Hook image variants x5"
-    skill: trend-viral-short
+  - label: "Hero image — bathroom UGC"
+    skill: creative-direct-image
     input:
-      prompt: "..."
-      count: 5
+      prompt: "..."                         # different prompt — never reuse one prompt × count
       aspect_ratio: "9:16"
-      preset: trend_viral_v1
+      reference_urls: ["https://..."]
 
   - label: "Store URL — full video"
     skill: product-url-to-video
@@ -90,6 +89,8 @@ items:
 
 Each item **must** have a unique `label` (for delivery table). Generate a **`client_request_id` (UUID)** per item before submit — idempotent, avoids duplicate charges.
 
+**Image A/B rule**: N variants = N items with **N different prompts**. Do not submit the same prompt multiple times hoping for diversity.
+
 ---
 
 ## Skill → MCP mapping (strict on submit)
@@ -100,7 +101,7 @@ Each item **must** have a unique `label` (for delivery table). Generate a **`cli
 | `creative-script2film-keyframes` | creative-script2film-keyframes | `creative_submit_script2film_keyframes` | `script2film` |
 | `creative-direct-video` | creative-direct | `creative_submit_workflow` | `direct_video` |
 | `creative-direct-image` | creative-direct | `creative_submit_workflow` | `direct_image` |
-| `trend-viral-short` | trend-viral-short | `creative_submit_batch_variants` | `batch_variants` |
+| `trend-viral-short` | trend-viral-short | expand → N× `creative-direct-image` | `direct_image` |
 | `product-url-to-video` | product-url-to-video | after scrape → any L1 MCP above | per `workflow` |
 
 **All batch items are async jobs** with `job_id`; track via `creative_get_job` / `creative_list_jobs` / `creative_cancel_job`.
@@ -165,6 +166,14 @@ When batch item is `product-url-to-video`:
 3. When `workflow: direct` → `creative-direct-video` + `creative_submit_workflow` (`direct_video`); hero image in `reference_image_urls`
 4. Write scraped `product_name`, `description`, hero URLs into `script` / `brief` / `reference_image_urls` before submit
 
+### L2 vertical (trend-viral-short)
+
+When user intent is trend hook A/B images:
+
+1. Follow **trend-viral-short** to craft **N distinct prompts**
+2. Expand into N `creative-direct-image` items (do not keep a single `count` field)
+3. Submit and track like any other image batch
+
 ---
 
 ## Standard flow (required)
@@ -175,6 +184,7 @@ When batch item is `product-url-to-video`:
 - Each `label` non-empty; `skill` in mapping table
 - Missing script / prompt / URL → ask user; **do not** submit partial items
 - Confirm video items use async submit (not expecting in-call artifacts)
+- Image items: each has its **own** `prompt` (reject identical prompts unless user explicitly wants duplicates)
 
 ### 2. Estimate credits
 
@@ -184,9 +194,8 @@ When batch item is `product-url-to-video`:
 | skill | estimate workflow_type | params example |
 |-------|------------------------|----------------|
 | creative-script2film / keyframes | `script2film` | `{ target_duration_sec: 30 }` |
-| trend-viral-short | `batch_variants` | `{ count: 5 }` |
 | creative-direct-video | `direct_video` | `{ duration_sec: 5 }` |
-| creative-direct-image | `direct_image` | `{}` |
+| creative-direct-image / trend-viral-short item | `direct_image` | `{}` |
 
 3. **Summary table** for user confirmation (label, skill, est. credits, est. time):
 
@@ -278,7 +287,6 @@ When all terminal, output **batch result table**:
 |------|----------|
 | script2film / keyframes | Parallel submit OK (server parallelizes shots); 10 full jobs at once → credit spike |
 | direct_video / direct_image | Parallel with other jobs; ~2–5 min per job |
-| batch_variants | One job, internal batch — uses 1 batch slot |
 | Mixed batch | All 10 may submit at once; track in one thread |
 
 ---
@@ -292,6 +300,17 @@ User: "Three product URLs as reference renders, plus two keyframe scripts, five 
 3. Estimate summary → user confirm
 4. **Parallel submit 10 async jobs** (5× `direct_video` via `creative_submit_workflow`)
 5. Tell user to query progress in chat; on follow-up or all terminal → 10-row result table with job_ids
+
+---
+
+## Example: 5 hook image variants
+
+User: "Same SKU, five TikTok hook stills for A/B."
+
+1. Load **trend-viral-short** → craft **5 different prompts**
+2. Build 5× `creative-direct-image` items (shared `reference_urls`, distinct `prompt` + `label`)
+3. Estimate → confirm → parallel submit 5 `direct_image` jobs
+4. Deliver 5-row result table
 
 ---
 

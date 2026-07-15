@@ -22,7 +22,7 @@ metadata:
 
 | MCP / output | Load skill first |
 |--------------|------------------|
-| `creative_generate_image`, `direct_image`, `batch_variants` | **creative-gpt-image2-prompt** |
+| `creative_generate_image`, `direct_image` | **creative-gpt-image2-prompt** |
 | `creative_generate_video`, `creative_image_to_video`, `creative_first_frame_to_video`, `direct_video` | **creative-seedance2-prompt** |
 | script2film Final Video Spec (per-shot visuals) | **creative-seedance2-prompt** before submit |
 

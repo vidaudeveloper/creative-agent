@@ -3,7 +3,7 @@ name: trend-viral-short
 description: Use when batch TikTok/Reels hook IMAGE variants to A/B
 metadata:
   layer: L2-vertical
-  requires: [creative-job-runner, creative-platform, creative-gpt-image2-prompt, creative-seedance2-prompt, creative-script2film, creative-script2film-keyframes, creative-direct]
+  requires: [creative-job-runner, creative-platform, creative-gpt-image2-prompt, creative-seedance2-prompt, creative-batch-orchestrator, creative-script2film, creative-script2film-keyframes, creative-direct]
   tags: [trend, batch, ecommerce, image]
 ---
 
@@ -11,7 +11,8 @@ metadata:
 
 Ride trends; quickly produce multiple vertical **image** variants for A/B testing.
 
-> **Prompt gate**: Load **creative-gpt-image2-prompt** before `creative_submit_batch_variants` — craft base prompt + variant hooks. For video paths, load **creative-seedance2-prompt** before video MCP.
+> **Prompt gate**: Load **creative-gpt-image2-prompt** — craft **one distinct prompt per variant** (different hook / scene / composition). For video paths, load **creative-seedance2-prompt** before video MCP.
+> **Submit path**: ≥2 images → hand off to **creative-batch-orchestrator** as N× `creative-direct-image` jobs. **Do not** reuse one prompt with a count.
 
 ## When to use
 
@@ -28,20 +29,35 @@ This skill defaults to **batch images**. For video, switch L1 skill by intent:
 | Multi-shot + keyframe transitions | creative-script2film-keyframes | `creative_submit_script2film_keyframes` |
 | Single trend short clip | creative-direct | `creative_generate_video` / `creative_first_frame_to_video` |
 
-Confirm intent before submit — do not default to batch_variants for video requests.
+Confirm intent before submit — do not default to image batch for video requests.
 
 ## Flow (image variants)
 
 1. Organize brief: `product`, `trend_tags` (trend keywords), `hook_idea` (optional)
-2. **Load creative-gpt-image2-prompt** — craft production-grade base `prompt` (+ variant hook clauses if needed)
-3. `creative_estimate` workflow_type=`batch_variants`, params=`{ count: 5 }`
-4. `creative_submit_batch_variants`:
-   - `prompt`: **output from creative-gpt-image2-prompt** (not raw user text)
-   - `count`: default **5**
-   - `aspect_ratio`: **9:16**
-   - `preset`: **trend_viral_v1**
-5. **creative-job-runner** — push `tracking.user_message` immediately; arm background ETA → 20s poll; end turn; on wake list artifacts
-6. List artifacts by variant number; suggest launch priority
+2. Decide `N` (default **5**, hard cap **10** via batch orchestrator)
+3. **Load creative-gpt-image2-prompt** — craft **N distinct** production-grade prompts (different hooks / angles / scenes; not "variant 1/2/3" suffixes)
+4. Hand off to **creative-batch-orchestrator** with N items:
+
+```yaml
+batch_label: "Trend hooks — <product>"
+items:
+  - label: "Hook A — neon shelf UGC"
+    skill: creative-direct-image
+    input:
+      prompt: "<prompt from gpt-image2 skill>"
+      aspect_ratio: "9:16"
+      reference_urls: ["https://..."]   # product refs when available
+  - label: "Hook B — bathroom vanity"
+    skill: creative-direct-image
+    input:
+      prompt: "<different prompt>"
+      aspect_ratio: "9:16"
+      reference_urls: ["https://..."]
+  # … up to N
+```
+
+5. Batch skill handles estimate → parallel `creative_submit_workflow` (`direct_image`) → job-runner tracking → result table
+6. List artifacts by label; suggest launch priority
 
 ## Preset constraints (trend_viral_v1)
 

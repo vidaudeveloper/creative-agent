@@ -11,7 +11,7 @@ metadata:
 
 Production-grade **GPT Image 2 (`gpt-image-2`)** prompt engineering for VidAU Creative Agent.
 
-> **Mandatory gate**: Load this skill **before** any MCP that generates images (`creative_generate_image`, `creative_submit_batch_variants`, `creative_submit_workflow` with `direct_image`, or any `prompt` for still/keyframe generation). **Never** pass raw user text directly as `prompt` — run this skill's workflow first.
+> **Mandatory gate**: Load this skill **before** any MCP that generates images (`creative_generate_image`, `creative_submit_workflow` with `direct_image`, or any `prompt` for still/keyframe generation). **Never** pass raw user text directly as `prompt` — run this skill's workflow first.
 
 Adapted from [wuyoscar/GPT-Image2-Skill](https://github.com/wuyoscar/GPT-Image2-Skill) (MIT) and [freestylefly/awesome-gpt-image-2](https://github.com/freestylefly/awesome-gpt-image-2) (MIT).
 
@@ -20,7 +20,7 @@ Adapted from [wuyoscar/GPT-Image2-Skill](https://github.com/wuyoscar/GPT-Image2-
 | Trigger | Action |
 |---------|--------|
 | `creative_generate_image` | Craft prompt → MCP `prompt` |
-| `creative_submit_batch_variants` | Craft base prompt + variant hooks |
+| Batch A/B images (trend-viral / orchestrator) | Craft **one distinct prompt per item** |
 | `direct_image` workflow | Craft prompt → `input.prompt` |
 | Keyframe / product still brief | Output English or Chinese prompt per user locale |
 | User says GPT Image / 生图 / 海报 / mockup | Draft or refine |
@@ -76,7 +76,7 @@ Change only background to soft gradient; keep product identical.
 | Context | Rule |
 |---------|------|
 | Product ads | Clear hierarchy: product largest; no fake competitor logos |
-| batch_variants | One strong base prompt + hook variations in `count` submissions |
+| Batch A/B images | N distinct prompts (different hook/scene/composition); never one prompt × count |
 | script2film keyframes | Photoreal or brand-locked style; match `brief.narrative` tone |
 | Edit / inpaint | State transform + explicit preserve list |
 | Safety | No real-person likeness unless user owns reference; tasteful fashion only |

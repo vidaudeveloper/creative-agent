@@ -115,7 +115,6 @@ skills:
       - creative_estimate
       - creative_submit_script2film
       - creative_submit_script2film_keyframes
-      - creative_submit_batch_variants
       - creative_submit_workflow
       - creative_get_job
       - creative_list_jobs
@@ -126,15 +125,18 @@ skills:
     path: L2-vertical/trend-viral-short
     title: Trend Viral Short
     tags: [trend, batch, ecommerce]
-    requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-script2film, creative-script2film-keyframes, creative-direct]
+    requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-batch-orchestrator, creative-script2film, creative-script2film-keyframes, creative-direct]
     preset: trend_viral_v1
     mcp_tools:
-      - creative_submit_batch_variants
+      - creative_submit_workflow
       - creative_submit_script2film
       - creative_submit_script2film_keyframes
       - creative_generate_video
       - creative_first_frame_to_video
       - creative_get_job
+      - creative_list_jobs
+      - creative_cancel_job
+      - creative_estimate
 
   - id: product-url-to-video
     layer: L2-vertical
@@ -145,7 +147,7 @@ skills:
     mcp_tools:
       - creative_submit_script2film
       - creative_submit_script2film_keyframes
-      - creative_submit_batch_variants
+      - creative_submit_workflow
       - creative_generate_image
       - creative_image_to_video
       - creative_first_frame_to_video

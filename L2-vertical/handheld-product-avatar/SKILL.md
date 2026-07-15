@@ -31,9 +31,9 @@ Turn **product image + selling points** into a vertical UGC-style ad: person **h
 > **Hint 确认**：口播文案 + **人物已手持/穿戴产品的效果图**出来后进入 **Hint 模式**，用户可反复改文案/形象；**明确确认后**才 TTS / 生视频。  
 > **禁止**只出无产品的纯人物定妆图给用户确认 — 效果图必须已含产品。  
 > **Default render path**: **batch direct video** (per-shot Seedance) — **not** `creative_submit_script2film`.  
-> Pipeline: TTS per shot → parallel async `direct_video` → **§8 Wait-then-poll（强制）** → **§9 ffmpeg concat**.  
-> **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**在本对话内按 **creative-job-runner**（`sleep(ETA)` → 查 job → 未完成再 `sleep 20s`）循环，直到全部终态后**自动**进拼接。  
-> **禁止**：提交后结束回合、让用户「随时问进度」、只口头说 Wait-then-poll 却不执行 sleep。  
+> Pipeline: TTS per shot → parallel async `direct_video` → **§8 后台 Wait-then-poll（强制）** → **§9 ffmpeg concat**.  
+> **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**按 **creative-job-runner**：前台通知并结束回合 + **后台** `sleep(ETA)` → 查 job → 未完成再后台 `sleep 20s`，全部终态后**自动**进拼接。  
+> **禁止**：只回复 job 表却不调度后台 waiter；或把跟进完全推给用户「随时问进度」。  
 > Lip sync = Seedance `reference_audio` **出镜口播对口型**（not 旁白/画外音；prompt 禁止 narration/旁白措辞）.  
 > **Never** upload recognizable real-face refs unless user accepts privacy risk.
 
@@ -168,28 +168,27 @@ MCP: `creative_submit_workflow` with above, **or** `creative_image_to_video` (al
 
 **Do not** call `creative_submit_script2film` on this default path.
 
-**提交完成后禁止结束回合** — 立刻进入 **§8**（不得只回复 job 表并等用户来问）。
+**提交完成后必须调度 §8 后台 waiter** — 前台可结束回合，但不得只回复 job 表并等用户来问。
 
-### 8. Wait-then-poll（强制主步骤 — 对齐 job-runner 后继续拼接）
+### 8. Wait-then-poll（强制主步骤 — 后台对齐 job-runner，唤醒后拼接）
 
-**必做，不是参考可选。** 遵循 **creative-job-runner** 默认协议，完成后**必须**进 §9。
+**必做，不是参考可选。** 遵循 **creative-job-runner**（前台回复 + 后台轮询），完成后**必须**进 §9。
 
-全部镜头 job 提交成功后，**同一回合内**执行：
+全部镜头 job 提交成功后：
 
-1. 告知用户：jobs 已提交 + `job_id` ↔ shot 表 + **max ETA**（各 submit 的 `estimate.eta_sec`，缺省 **180s**）
-2. **立刻** `sleep(max_eta)`（或调度等价等待）— **不要**提前忙轮询，也 **不要**结束回合
-3. 查询每个 `job_id`（`creative_get_job` 或 `creative_list_jobs`）
-4. 若 **全部** 终态（`completed` / `failed` / `cancelled`）：
+1. **前台**：告知用户 jobs 已提交 + `job_id` ↔ shot 表 + **max ETA**（各 submit 的 `estimate.eta_sec`，缺省 **180s**）→ 调度后台 waiter → **结束前台回合**
+2. **后台**：`sleep(max_eta)`（勿在前台阻塞）→ 查询每个 `job_id`
+3. 若 **全部** 终态（`completed` / `failed` / `cancelled`）：
    - 有失败 → 报告失败镜；问重试或用成功镜继续
    - 全部 `completed` → **立刻**进 **§9 Client concat**（不等人再 ping）
-5. 若仍有 `queued`/`running` → `sleep 20s` → 回步骤 3（总上限约 30 min；超时列出卡住的 job）
-6. 轮询中每 1–2 轮可简短进度（如 `3/5 done`）；勿刷屏
+4. 若仍有 `queued`/`running` → 再调度后台 `sleep 20s` → 回步骤 2（总上限约 30 min；超时列出卡住的 job）
+5. 轮询唤醒时每 1–2 轮可简短进度（如 `3/5 done`）；勿刷屏
 
 **Forbidden（违反即流程错误）**
 
-- 提交后结束回合，说「你可以随时问我进度」
-- 只描述 Wait-then-poll 却不调用 sleep / 不查 job
-- 把轮询推给用户、cron、或「以后再查」
+- 结束回合且**不**调度后台 waiter，只说「你可以随时问我进度」
+- 只描述 Wait-then-poll 却不 arm 后台 sleep / 不查 job
+- 在前台回合里多分钟 `sleep` 卡住对话
 - 查完终态却不进入 §9
 
 细节表见 [batch-direct-video.md](references/batch-direct-video.md) § Wait-then-poll — 与本节等效，**不可**因「写在 references」而跳过。

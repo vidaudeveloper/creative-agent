@@ -134,8 +134,8 @@ On confirm, check that **`narrative_structure`** matches intent; if not, adjust 
    ```
    Use `"voiceover_mode": "mux"` and omit `audio_url` when lip sync is not needed.
    Omit `voiceover_*` / `subtitles_enabled` when user does not want narration.
-3. Hand the returned `job_id` to **creative-job-runner** — send `tracking.user_message` **immediately**, then **sleep ETA → poll every 20s** until terminal (do not end the turn waiting for the user to ping).
-4. On `completed`, **artifacts[0]** is the server master (**BGM mixed in**); continue client post-process below.
+3. Hand the returned `job_id` to **creative-job-runner** — send `tracking.user_message` **immediately**, arm **background** ETA → 20s poll, **end the foreground turn** (do not block chat with in-turn sleep; do not rely on user ping alone).
+4. On background wake with `completed`, **artifacts[0]** is the server master (**BGM mixed in**). Default: save master to conversation **产物** + show URL. Continue client post-process below only when VO mux / subtitles need a temp local file.
    - **`mux`**: run client VO mux + optional subtitles
    - **`lipsync`**: VO already in video; optional subtitles only
 

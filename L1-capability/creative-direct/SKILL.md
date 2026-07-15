@@ -38,7 +38,7 @@ metadata:
    - `prompt`: **output from creative-gpt-image2-prompt** (not raw user text)
    - `aspect_ratio`: `9:16` | `1:1` | `16:9`
    - `reference_urls`: optional — `file_url` from upload step (or existing HTTPS URLs)
-5. Read `tracking.user_message`; return `artifacts[0].urls.download` + local save hint
+5. Read `tracking.user_message` / `delivery_strategy`; save to conversation **产物** + show `artifacts[0].urls.download` (do not default-download to a local path)
 
 ## Video generation (async only)
 
@@ -50,7 +50,7 @@ metadata:
    - optional `reference_audio_urls` / `reference_video_urls`
 4. Without refs → `creative_generate_video` (text-to-video)
 5. First/last frame → `creative_first_frame_to_video`
-6. Response is **`job_id` + tracking** — **not** artifacts. Follow **creative-job-runner**: notify → sleep ETA → poll every 20s → deliver on complete.
+6. Response is **`job_id` + tracking** — **not** artifacts. Follow **creative-job-runner**: notify + arm background ETA/20s poll → end turn; on wake deliver.
 
 Equivalent: `creative_submit_workflow` with `workflow_type=direct_video` and the same fields under `input`.
 

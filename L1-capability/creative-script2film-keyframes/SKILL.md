@@ -40,7 +40,7 @@ Same server pipeline as **creative-script2film** — **only `video_mode` differs
 }
 ```
 
-3. **creative-job-runner** — send `tracking.user_message` immediately after submit; sleep ETA → poll every 20s; on complete **artifacts[0]** is final video (with BGM unless `skip_bgm: true`)
+3. **creative-job-runner** — send `tracking.user_message` immediately after submit; arm background ETA → 20s poll; end turn; on wake **artifacts[0]** is final video (with BGM unless `skip_bgm: true`)
 
 ### Server execution order (same as reference version)
 

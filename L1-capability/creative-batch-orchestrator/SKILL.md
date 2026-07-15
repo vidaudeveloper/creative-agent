@@ -237,11 +237,11 @@ After submit, send summary: `Submitted N async jobs` + each `job_id`; say you wi
 ### 4. Tracking (creative-job-runner extension)
 
 1. Send `tracking.user_message` per submit (keep all `job_id`s)
-2. Follow **creative-job-runner**: `sleep(max ETA)` → poll every **20s** until all terminal
-3. User may ask mid-wait; answer once (`creative_list_jobs` / `creative_get_job`), then **resume** the loop
-4. When all terminal → deliver batch result table (§5) and continue any skill next step
+2. Follow **creative-job-runner**: arm background `sleep(max ETA)` → poll every **20s**; **end foreground turn**
+3. User may ask mid-wait; answer once (`creative_list_jobs` / `creative_get_job`); keep the background schedule
+4. On wake when all terminal → deliver batch result table (§5) and continue any skill next step
 
-**Do not** end the turn after submit and wait for the user to ping.
+**Do not** skip arming the background waiter (user-ping-only). **Do not** block the chat turn with in-turn ETA sleep.
 
 ### 5. Delivery
 
@@ -255,7 +255,7 @@ When all terminal, output **batch result table**:
 | 3 | Store B | script2film | uuid-3 | ❌ | error: ... |
 ```
 
-- Success: `artifacts[0].urls.download` + local save hint
+- Success: save to conversation **产物** + `artifacts[0].urls.download` (follow `delivery_strategy`; no default local-path download)
 - Failure: `error` + whether to retry single item (new `client_request_id`)
 - Stats: M succeeded / N total, total credits consumed
 

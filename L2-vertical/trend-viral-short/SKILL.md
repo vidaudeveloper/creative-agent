@@ -40,7 +40,7 @@ Confirm intent before submit — do not default to batch_variants for video requ
    - `count`: default **5**
    - `aspect_ratio`: **9:16**
    - `preset`: **trend_viral_v1**
-5. **creative-job-runner** — push `tracking.user_message` immediately; sleep ETA → poll every 20s until terminal
+5. **creative-job-runner** — push `tracking.user_message` immediately; arm background ETA → 20s poll; end turn; on wake list artifacts
 6. List artifacts by variant number; suggest launch priority
 
 ## Preset constraints (trend_viral_v1)

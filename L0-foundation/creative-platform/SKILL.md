@@ -46,6 +46,13 @@ Image/video MCP tools accept **HTTPS URLs** only (`reference_urls`) — not raw 
 
 **Do not** use `local_path` on remote MCP (ENOENT). **Do not** default to sending large base64 via MCP; use `creative_upload_reference` only when no local terminal is available.
 
+## Delivery (generated outputs)
+
+- **Default**: save generated images/videos into the conversation **产物** (artifacts); show artifact + download URL.
+- **Do not** default-download to a local path (`generations/...`, Downloads, etc.).
+- `local.suggested_*` on artifacts is optional naming metadata — not an instruction to write files to disk.
+- Temp local files only for explicit user request or required post-process (ffmpeg, etc.).
+
 ## Notes
 
 - Single reference image ~25 MB max; jpg/png/webp/gif/bmp supported

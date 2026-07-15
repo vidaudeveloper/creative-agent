@@ -47,4 +47,4 @@ Rules:
 - Final shot list + **handheld still** (+ product URL) locked in agent memory for TTS/video  
 - Confirmed still still shows product held or worn (visual check before exit)  
 
-Then proceed: TTS → batch direct video → **§8 Wait-then-poll（强制 sleep）** → §9 concat.
+Then proceed: TTS → batch direct video → **§8 后台 Wait-then-poll** → §9 concat.

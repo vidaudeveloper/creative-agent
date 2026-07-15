@@ -70,34 +70,34 @@ Map each item → `creative_submit_workflow` `workflow_type=direct_video` + uniq
 
 **Required after every video submit on this skill. Not optional. Not “reference only.”**
 
-Follows **creative-job-runner** (sleep ETA → poll 20s); then **must** continue to concat in the same session.
+Follows **creative-job-runner** (foreground reply + background ETA → poll 20s); on wake **must** continue to concat.
 
 ```text
 submit all shot jobs (parallel)
-  → notify user (job_ids + ETA)
-  → sleep once for max(estimate.eta_sec)  // fallback 180s  ← MUST call sleep tool
-  → query all job_ids
-  → if all terminal → concat (or report failures)  ← MUST continue same session
-  → else sleep 20s → query again → loop until all terminal
+  → notify user (job_ids + ETA) + arm background waiter  → end foreground turn
+  → [background] sleep once for max(estimate.eta_sec)  // fallback 180s
+  → [background wake] query all job_ids
+  → if all terminal → concat (or report failures)
+  → else re-arm background sleep 20s → query again → loop until all terminal
 ```
 
 | Step | Action |
 |------|--------|
 | 1 | Collect each submit’s `job_id` + `estimate.eta_sec` |
 | 2 | `wait_sec = max(etas)` or **180** if none |
-| 3 | **Call sleep / scheduled wait** for `wait_sec` — do **not** end the turn |
-| 4 | `creative_get_job` each id (or one `creative_list_jobs` + filter) |
+| 3 | Arm **background** sleep for `wait_sec` — end foreground turn (do **not** block chat) |
+| 4 | On wake: `creative_get_job` each id (or one `creative_list_jobs` + filter) |
 | 5 | All `completed` → download + ffmpeg concat (§ below) **immediately** |
-| 6 | Any non-terminal → sleep **20s**, goto 4 |
+| 6 | Any non-terminal → re-arm background sleep **20s**, goto 4 |
 | 7 | Timeout ~**30 min** total after first poll → stop, list unfinished `job_id`s |
 
 **Forbidden**
 
-- Ending the turn after submit with “你可以随时问我进度”
-- Describing this section without executing sleep + query
-- Deferring poll to the user / cron / later message
+- Ending the turn with **no** background waiter (“你可以随时问我进度” only)
+- Describing this section without arming background sleep + query
+- Blocking the foreground turn with multi-minute in-turn sleep
 
-User may still ask for status mid-wait; answer with one query round, then **resume** the 20s loop (do not stop the loop).
+User may still ask for status mid-wait; answer with one query round; **keep** the background schedule.
 
 
 ## Tracking table

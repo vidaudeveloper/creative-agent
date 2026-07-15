@@ -183,7 +183,7 @@ ${FFMPEG_BIN:-ffmpeg} -y -i final-vo.mp4 -vf "subtitles=subtitles.srt:force_styl
   -c:a copy final-vo-sub.mp4
 ```
 
-Deliver `final-vo-sub.mp4` to the user with local save hint.
+Deliver `final-vo-sub.mp4` to conversation **产物** + show URL (do not default-download to a random local path).
 
 ## Server vs client
 

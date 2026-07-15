@@ -1,57 +1,78 @@
 ---
 name: creative-job-runner
-description: Use after submit; sleep ETA then poll every 20s
+description: Use after submit; reply then background ETA poll
 metadata:
   layer: L0-foundation
   requires: []
   tags: [foundation, async, tracking]
 ---
 
-# Creative Job Runner — Submit → wait ETA → poll → continue
+# Creative Job Runner — Reply now + background Wait-then-poll
 
 **All** VidAU image/video skills must follow this tracking protocol after MCP calls.
 
-**Default (async)**: After submit, notify the user, then run a **background wait**: sleep for the job’s estimated time, then poll every **20s** until terminal, then **continue** the skill’s next steps in the same session.
+**Default (async)** — two lanes:
 
-**Skill override**: An active L1/L2 skill may tighten intervals, ETA fallback, or timeout (e.g. handheld §8, product→jianying remix). Overrides may only make waiting **stricter or more specific** — they must **not** revert to “submit and stop / ask user to ping.”
+| Lane | What happens |
+|------|----------------|
+| **Foreground (this turn)** | Notify user with `job_id` / ETA → **end the turn**. Do **not** block the chat with in-turn `sleep` loops. |
+| **Background** | Schedule wait for **ETA**, then poll every **20s** until terminal → **wake** and continue delivery / skill next steps. |
+
+**Forbidden**: treating “end turn” as “only wait for the user to ping.” Ending the turn is required for UX; the **background** waiter must still be armed.
+
+**Skill override**: An active L1/L2 may tighten ETA / interval / timeout, but must keep **foreground reply + background poll** (not in-turn blocking sleep, not user-ping-only).
 
 ## When to enable automatically
 
 | MCP tool | Tracking mode |
 |----------|---------------|
-| `creative_submit_*` | **Async** — `job_id`; default Wait-then-poll |
-| `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` | **Async** — `job_id`; default Wait-then-poll |
+| `creative_submit_*` | **Async** — `job_id`; foreground reply + background poll |
+| `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` | **Async** — same |
 | `creative_generate_image` (and TTS/BGM sync tools) | **Sync** — tell estimated time before call; read `tracking.user_message` when done |
-| Any tool returning `job_id` | Wait-then-poll unless the active skill defines a stricter schedule |
+| Any tool returning `job_id` | Same async protocol unless skill defines a stricter **background** schedule |
 
-## Async job standard flow (default)
+## Async job standard flow
 
-1. **On submit** — read `tracking.user_message` from response, **send to user immediately** (job_id, estimated credits/time). Say generation is running in the background and you will continue when ready.
-2. **Background wait** — `sleep` once for **ETA**:
-   - Prefer `estimate.eta_sec` from the submit response (or max ETA across a batch).
-   - Fallback if missing: **180s** (video) / skill-stated fallback.
-   - Do **not** busy-poll before ETA ends.
-3. **Poll** — call `creative_get_job` (or `creative_list_jobs` for a batch). If still `queued` / `running` → `sleep 20s` → query again.
-4. **Continue** — when job(s) are terminal (`completed` / `failed` / `cancelled`):
-   - `completed` → deliver artifacts (or run the skill’s next step: concat, mux, remix, etc.) **in the same session**.
+### A. Foreground (must finish this turn)
+
+1. Read `tracking.user_message` — **send to user immediately** (job_id, credits, ETA).
+2. Tell user generation is running in the background; you will follow up when ready (they may still ask mid-wait).
+3. **Arm a background waiter** (see § Background arming) with `wait_sec = estimate.eta_sec` (batch: `max` ETA; fallback **180s**).
+4. **End the turn** — do **not** call in-turn `sleep` / busy-poll in the foreground.
+
+### B. Background (after ETA / each wake)
+
+1. On wake → `creative_get_job` (or `creative_list_jobs` for a batch).
+2. If still `queued` / `running` → re-arm background wait for **20s** → end wake quietly (brief progress ok every 1–2 wakes; no spam).
+3. If terminal:
+   - `completed` → deliver artifacts **or** continue the skill’s next step (concat / mux / remix / …).
    - `failed` / `cancelled` → report error; offer retry with a new `client_request_id`.
-5. **Timeout** — stop after ~**30 min** total after the first post-ETA poll; list unfinished `job_id`s.
-6. **User mid-wait** — if the user asks status while waiting, answer with one query round, then **resume** the 20s loop (do not abandon it).
-7. **Cancel** — user says "cancel" → `creative_cancel_job`.
+4. **Timeout** — stop ~**30 min** after the first post-ETA poll; list unfinished `job_id`s.
+5. **User mid-wait** — answer with one query; **do not** cancel the background schedule.
+6. **Cancel** — user says "cancel" → `creative_cancel_job` and stop the background waiter.
+
+### Background arming (runtime)
+
+Use the host’s **non-blocking** schedule (pick what the runtime supports):
+
+- Cursor / shell: background `sleep <eta_sec>` then emit a wake sentinel (e.g. `AGENT_LOOP_WAKE_creative_job`) with `job_id`s + next action in the payload; on not-done, re-arm `sleep 20`.
+- Hermes / other: equivalent deferred wake / cron / background task — **same semantics**.
+
+Do **not** hold the user-visible turn inside a multi-minute `sleep`.
 
 ### Batch / multi-job
 
-- `wait_sec = max(estimate.eta_sec)` across submitted jobs (fallback 180s).
-- After ETA, poll all non-terminal jobs every 20s until **all** are terminal, then continue.
+- Foreground: notify with all `job_id`s → arm one background waiter with `max(ETA)`.
+- Background: poll until **all** terminal → then continue.
 
-## vs old behavior
+## vs wrong patterns
 
-| ❌ Forbidden | ✅ Default now |
-|-------------|----------------|
-| End turn after submit; “ask me for progress anytime” as the only path | Notify → sleep ETA → poll 20s → continue |
-| Busy-poll every few seconds from t=0 | Sleep full ETA first, then 20s interval |
-| Ignore `job_id` / never follow up | Keep `job_id`s until delivery or skill next step |
-| Stop after notify and wait for user ping | Agent drives the wait/poll loop |
+| ❌ Forbidden | ✅ Required |
+|-------------|-------------|
+| Block the chat turn with ETA `sleep` + poll loop | Reply → arm background → end turn |
+| End turn with **no** background waiter (“ask me anytime” only) | Background ETA → 20s poll → auto continue |
+| Busy-poll from t=0 | Sleep full ETA first, then 20s |
+| Drop `job_id` after notify | Keep until delivery / next skill step |
 
 ## Sync generation (image / audio only)
 
@@ -59,16 +80,17 @@ metadata:
 
 After tool returns, deliver `tracking.user_message` + artifact URLs. VIP or coin errors → follow **creative-platform** billing rules.
 
-**Video is never sync** — tools return `job_id`. Always use the async Wait-then-poll flow above.
+**Video is never sync** — tools return `job_id`. Use foreground reply + background poll.
 
 ## Agent behavior
 
-- Prefer this L0 schedule over `tracking.agent_action` / `should_continue_polling` that say “no polling” — those fields reflected the old chat-only mode. Still use `tracking.user_message` for user-facing copy.
+- Prefer this L0 protocol over `tracking.agent_action` that still says “no polling / wait for user” — those strings may lag; still use `tracking.user_message` for user-facing copy.
 - **Do not** send task dashboard links; progress stays in this chat.
 - User says "my jobs" → `creative_list_jobs` and show list in chat.
-- Progress tips: brief status every 1–2 poll rounds (e.g. `3/5 done`); do not spam.
 
 ## Delivery
 
-- When job is `completed`, deliver `artifacts[0].urls.download` + local save hint (or hand off to the active skill’s next step).
-- `delivery.mode=both` (default): URL + `local.suggested_filename` / `suggested_subpath`
+- On background wake with `completed` (or sync generation done): follow MCP `delivery_strategy`.
+- **Default**: save image/video into the conversation **产物** (artifacts) and show the user the artifact + `urls.download`.
+- **Do not** default to curl/wget into a local folder. Ignore `local.suggested_subpath` / `suggested_filename` as a default save path.
+- Temporary local download is allowed only when the user asks for a disk path, or a later step needs files on disk (ffmpeg concat / mux / etc.).

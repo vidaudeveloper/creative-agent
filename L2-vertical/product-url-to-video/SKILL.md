@@ -43,7 +43,7 @@ Message contains `https://` and looks like a product page (`product`, `/p/`, `/d
 1. Scrape product info (Agent local tools)
 2. Show summary to user and confirm
 3. Estimate credits + submit generation (MCP)
-4. creative-job-runner — notify → sleep ETA → poll every 20s → deliver / continue
+4. creative-job-runner — notify + background ETA/20s poll → end turn → on wake deliver
 ```
 
 ---
@@ -219,9 +219,9 @@ Use **creative-direct**:
 
 Load **creative-job-runner** immediately after submit:
 
-- Send `tracking.user_message`; then sleep ETA → poll every 20s until terminal
-- On `completed` → deliver URL + local hint (**script2film includes BGM by default**)
-- User may ask mid-wait; answer once, then resume the poll loop
+- Send `tracking.user_message`; arm background ETA → 20s poll; **end foreground turn**
+- On background wake with `completed` → save to conversation **产物** + deliver URL (**script2film includes BGM by default**; no default local-path download)
+- User may ask mid-wait; answer once; keep the background schedule
 
 ---
 

@@ -122,13 +122,14 @@ Load [hint-mode.md](references/hint-mode.md).
 
 ### 6. TTS (required before video) — **同音色硬门禁**
 
-Load [voiceover-timing.md](references/voiceover-timing.md).
+Load [voiceover-timing.md](references/voiceover-timing.md) + persona（[persona-by-vertical.md](references/persona-by-vertical.md)）。
 
-1. **先锁定**本片唯一 `voice` + `language_boost`（按 persona 性别 + 口播语言选一次；见 voiceover-timing § Voice lock）  
+1. **先锁定**本片唯一 `voice` + `language_boost`：按 **口播语言 + 性别 + 垂类/职业/vibe** 匹配（voiceover-timing § Voice lock）；写入 `tts_voice_reason`  
 2. 每一镜 `creative_generate_tts` **必须传同一组** `voice` / `language_boost` — **禁止**省略、禁止逐镜换音色/换性别  
 3. 汇总 `{ index, text, duration_sec, audio_url, voice }`；`voice` 写入记忆供复检  
 
-若某镜漏传 `voice`，服务端会落到英文默认声 `English_Upbeat_Woman`，整片音色会乱套。
+若某镜漏传 `voice`，服务端会落到英文默认声 `English_Upbeat_Woman`，整片音色会乱套。  
+音色须贴合人物职业特点（如金融/医疗偏沉稳，美妆偏闺蜜，勿一律甜妹音）。
 
 ### 7. Batch direct video (default — **no script2film**)
 

@@ -1,6 +1,6 @@
 ---
 name: creative-batch-orchestrator
-description: Use when ≥2 parallel creative jobs mixed skills/MCP
+description: Use when ≥2 parallel creative async jobs, same/mixed skills
 metadata:
   layer: L1-capability
   requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]
@@ -9,7 +9,7 @@ metadata:
 
 # Creative Batch Orchestrator
 
-Group **multiple independent generation jobs** into one batch. **Mixed skills allowed** (script2film, keyframes, direct video, batch image variants, etc.) — parallel submit, unified tracking and delivery.
+Group **multiple independent generation jobs** into one batch. **Same or mixed skills** (script2film, keyframes, direct video, batch image variants, etc.) — parallel submit, unified tracking and delivery.
 
 > **Requires**: load **creative-job-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
 > **Prompt gate**: For every item that hits image/video MCP, load **creative-gpt-image2-prompt** or **creative-seedance2-prompt** and craft `prompt` **before** submit — never raw user text.
@@ -20,13 +20,14 @@ Group **multiple independent generation jobs** into one batch. **Mixed skills al
 
 - A/B same product across render modes (reference vs keyframes vs direct)
 - Multiple products / scripts in one run
+- Multiple distinct prompts as separate `direct_image` jobs
 - Mixed batch: 3× script2film + 5× direct_video + 2× batch_variants images
 - Ops daily drops: submit batch, track in background — no need to wait per item
 
 ## When not to use
 
 - Single task → use the matching L1/L2 skill directly, no batch wrapper
-- Same prompt, N image variants only → **trend-viral-short** + `creative_submit_batch_variants` (one job)
+- Single job (`count=N` variants is still one job) → use L1/L2 skill directly
 - User wants a single clip → **creative-direct** (video still async `job_id`; image may be sync)
 
 ---

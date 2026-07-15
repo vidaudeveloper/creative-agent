@@ -1,6 +1,6 @@
 ---
 name: creative-job-runner
-description: Use after submit to track job_id; never sleep/poll loop
+description: Use after submit; no poll unless active skill Wait-then-poll
 metadata:
   layer: L0-foundation
   requires: []
@@ -13,7 +13,7 @@ metadata:
 
 **Default**: Do not `sleep` or loop `creative_get_job` until completion in chat (script2film may take 10–30 minutes).
 
-**Exception**: Skills that explicitly define **Wait-then-poll** / auto-poll (e.g. **handheld-product-avatar**, product→jianying remix) **must** follow that skill’s schedule instead of “submit and stop”.
+**Exception (wins over default)**: If the **active** skill defines **Wait-then-poll** (e.g. **handheld-product-avatar** §8, product→jianying remix), you **MUST** sleep + poll per that skill. Do **not** end the turn with “ask me for progress.” The L2 schedule overrides this L0 default.
 
 ## When to enable automatically
 
@@ -32,22 +32,23 @@ metadata:
 4. **User follow-up** — single `creative_get_job` or `creative_list_jobs` per question; still **no** polling loop (default).
 5. **Cancel** — user says "cancel" → `creative_cancel_job`.
 
-## Wait-then-poll (skill override)
+## Wait-then-poll (skill override — mandatory when skill says so)
 
-When the active skill requires it (handheld batch video, etc.):
+When the active skill requires it (e.g. **handheld-product-avatar** after batch video submit):
 
 1. After submit, notify user with job_ids + ETA.
-2. Sleep once for **max ETA** (from `estimate.eta_sec`; skill may set fallback).
-3. Query all jobs; if all terminal → continue that skill’s next step (concat / remix).
+2. **Call sleep** once for **max ETA** (from `estimate.eta_sec`; skill fallback, often 180s).
+3. Query all jobs; if all terminal → continue that skill’s next step (concat / remix) **in the same session**.
 4. Else sleep **interval from that skill** (handheld = **20s**) and query again until done or skill timeout.
+5. **Do not** end the turn after step 1. **Do not** ask the user to ping you for progress as a substitute for sleep+poll.
 
 ## vs old behavior
 
-| ❌ Old (forbidden) | ✅ Now (required) |
-|-------------------|-------------------|
-| Poll `creative_get_job` every 10s / 30s / 60s | Return immediately after submit |
-| `sleep` in chat | Query only when user asks |
-| Wait for final video before replying | Confirm submit + job_id; user can follow up |
+| ❌ Forbidden (default path) | ✅ Default now | ✅ Wait-then-poll skills |
+|----------------------------|----------------|-------------------------|
+| Busy-poll every 10s forever | Return after submit | Sleep ETA → poll → continue skill |
+| Ignore job_id | Confirm submit + job_id | Same, **then** auto-wait |
+| — | Query only when user asks | Agent drives sleep+poll loop |
 
 ## Sync generation (image / audio only)
 
@@ -55,11 +56,11 @@ When the active skill requires it (handheld batch video, etc.):
 
 After tool returns, deliver `tracking.user_message` + artifact URLs. VIP or coin errors → follow **creative-platform** billing rules.
 
-**Video is never sync** — tools return `job_id`. Default: confirm submit, wait for user follow-up. **Exception**: skills with Wait-then-poll (e.g. handheld-product-avatar) auto-wait ETA then poll.
+**Video is never sync** — tools return `job_id`. Default: confirm submit, wait for user follow-up. **Exception**: skills with Wait-then-poll (e.g. handheld-product-avatar) **must** auto-wait ETA then poll.
 
 ## Agent behavior
 
-- Follow `tracking.agent_action` literally; if it says "no polling", do not ignore.
+- Follow `tracking.agent_action` literally; if it says "no polling", do not ignore — **except** when active skill Wait-then-poll overrides.
 - **Do not** send task dashboard links; progress stays in this chat.
 - User says "my jobs" → `creative_list_jobs` and show list in chat.
 

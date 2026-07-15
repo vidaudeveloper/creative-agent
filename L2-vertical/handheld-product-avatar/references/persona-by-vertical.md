@@ -23,9 +23,13 @@ Gender presentation: … (or unstated)
 Vibe: … (warm / energetic / calm expert)
 Wardrobe: … (casual tee / athleisure / …)
 Setting: … (home desk / kitchen / balcony — natural light)
-Handheld style: phone-selfie feel, product clearly in hand
+Handheld / wear style: phone-selfie feel; product already in hand OR worn on body (never empty-handed)
 Face: stylized AI model — NOT a real celebrity or real photo likeness
+TTS voice lock: … (fill from voiceover-timing.md table — one id for whole film)
 ```
+Note: persona text feeds the **handheld still** prompt — still must composite persona + product before Hint.  
+TTS: pick **one** voice from the gender row and lock it for all shots (see voiceover-timing § Voice lock).
+
 
 ## Diversity
 

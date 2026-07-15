@@ -53,16 +53,36 @@ Load with **creative-seedance2-prompt**. Apply to every speaking / handheld shot
 3. **Action**: Hold / present / tilt / point — not face-only talking head
 4. **UGC**: Mild handheld motion, natural light, home/street set (see ugc-authenticity.md)
 5. **Talent**: Consistent with confirmed **handheld still**; no real-person / celebrity likeness
-6. **Lipsync shots**: Face clearly visible; avoid extreme head turns; follow reference audio phonemes
+6. **Lipsync 口播（硬门禁）**: Face clearly visible; mouth moves with `reference_audio`; **on-camera speech** — NOT 旁白 / off-screen narration
 7. **No**: competitor brands, fake UI screenshots as proof, readable personal PII
+
+### 口播 vs 旁白（写 prompt 时必守）
+
+| ✅ 口播 lipsync（本 skill 默认） | ❌ 旁白 / mux 感（禁止用于默认镜） |
+|--------------------------------|----------------------------------|
+| Talent **speaks to camera** / 出镜说话 | Voiceover / narration / 画外音 / 旁白 |
+| Lip motion matches reference audio | Silent face + audio layered as VO |
+| `reference_audio_urls` = this shot TTS | Audio described as BGM / soundtrack / 解说 |
+
+**Mandatory EN suffix**（每镜 Seedance prompt 末尾追加）+ MCP 传 `reference_audio_role: "lipsync"`（服务端仅在此 role 下再保险追加一次）:
+
+```
+The on-screen person speaks on camera in sync with the reference audio (lip-sync talking-head).
+This is spoken dialogue from the visible talent — NOT off-screen narration, NOT voiceover over a silent face.
+Match lip movements and facial performance to the speech phonemes.
+Keep the face clearly visible; avoid extreme head turns that break lip sync.
+Mouth must move with the reference audio; do not invent different dialogue.
+```
+
+**Forbidden prompt words**（默认 talking 镜）: `voiceover`, `narration`, `off-screen`, `旁白`, `画外音`, `解说`, `配音盖画面`
 
 ### Prompt fragments (EN — weave into shot lines)
 
 ```
 Mid-shot UGC selfie style, talent holding the exact product from reference,
 product logo readable, soft natural window light, slight handheld camera,
-speaking to camera with natural lip motion matching the reference audio,
-keep face and product both in frame.
+the talent speaks on camera to the viewer with natural lip motion matching the reference audio,
+keep face and product both in frame — on-camera dialogue, not narration.
 ```
 
 Close-up B-roll (**opt-in only** — user asked for 展示/特写):

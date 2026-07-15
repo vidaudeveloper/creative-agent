@@ -6,8 +6,8 @@ Handheld **default render** = batch direct video (see [batch-direct-video.md](ba
 
 | Need | Path |
 |------|------|
-| On-camera lip sync (default) | Per-shot `reference_audio_urls` + direct_video / image_to_video |
-| Off-camera VO only | Still batch direct video **or** hand off script2film `voiceover_mode=mux` |
+| **On-camera 口播 lip sync（默认）** | Per-shot `reference_audio_urls` + direct_video；prompt 写「出镜说话对口型」，**禁止**旁白/画外音措辞 |
+| Off-camera 旁白 only | **仅当用户明确只要旁白** → script2film `voiceover_mode=mux` 或产品特写镜；默认 handheld **不要**走旁白 |
 
 ## Voice lock（硬门禁 — 整片同一音色）
 

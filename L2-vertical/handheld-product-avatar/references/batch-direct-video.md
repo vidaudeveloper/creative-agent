@@ -22,14 +22,17 @@ Default render for handheld talking-head. Each shot = one Seedance clip; Hermes 
   "reference_image_urls": ["https://…/product.jpg", "https://…/handheld-still.jpg"],
   "reference_video_urls": ["https://…/talent.mp4"],
   "reference_audio_urls": ["https://…/vo-01.mp3"],
+  "reference_audio_role": "lipsync",
   "generate_audio": true
 }
 ```
 
-- Lipsync speaking shot: **always** set `reference_audio_urls` to that shot’s TTS  
+- Lipsync speaking shot: **always** set `reference_audio_urls` + **`reference_audio_role: "lipsync"`**  
+- Prompt **must** say on-camera speech / lip-sync — **never** 旁白 / voiceover / narration（见 handheld-prompt § 口播 vs 旁白）  
 - Default handheld: every item is a speaking shot (face + product); image refs = product + **confirmed handheld still**  
 - Product-only B-roll: **only if user asked**; images only; `generate_audio` true/false OK  
 - Max **3** `reference_video_urls`; max **9** images  
+- 其它 skill 若要旁白/节拍：用 `reference_audio_role: "guide"` 或不传 role；旁白成片更推荐 mux 后混，勿设 `lipsync`  
 
 ## Submit patterns
 

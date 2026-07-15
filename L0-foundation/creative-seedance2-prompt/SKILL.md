@@ -70,6 +70,7 @@ VidAU MCP uses HTTPS URLs — in Agent text, describe roles as `reference_image_
 | **script2film + voiceover** | Per-shot video prompt: diegetic SFX/foley OK; **strictly NO BGM / soundtrack / vocals** in prompt (server appends same rule) |
 | **script2film default audio** | Ambient SFX only; BGM mixed server-side after concat |
 | **direct / single clip** | `generate_audio=true` default; still avoid asking for full soundtrack in prompt — let model produce in-shot SFX |
+| **direct + `reference_audio_urls`** | 看 `reference_audio_role`：`lipsync`=出镜对口型（服务端追加口型约束）；`guide`/省略=节拍或氛围引导，**不**强制张嘴。旁白成片：优先 `voiceover_mode=mux` 后混，或 `guide` + 自写旁白 prompt。 |
 | **reference mode** | Up to 9 refs; state each image's role (product / character / scene / style) |
 | **first/last frame** | Prompt describes motion **between** keyframes; do not contradict frame composition |
 | **Copyright safety** | Abstract cinematic language; no Disney/Marvel/celebrity/brand slogans; product = user's actual SKU only |

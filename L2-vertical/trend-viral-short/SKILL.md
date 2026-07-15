@@ -1,6 +1,6 @@
 ---
 name: trend-viral-short
-description: Trend short-form — batch hook image variants for TikTok/Reels product ads
+description: Use when batch TikTok/Reels hook IMAGE variants to A/B
 metadata:
   layer: L2-vertical
   requires: [creative-job-runner, creative-platform, creative-gpt-image2-prompt, creative-seedance2-prompt, creative-script2film, creative-script2film-keyframes, creative-direct]

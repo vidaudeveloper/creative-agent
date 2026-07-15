@@ -1,6 +1,6 @@
 ---
 name: creative-batch-orchestrator
-description: Batch orchestration — up to 10 items per batch, mixed skills/MCP, parallel submit and track
+description: Use when ≥2 parallel creative jobs mixed skills/MCP
 metadata:
   layer: L1-capability
   requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]
@@ -14,7 +14,7 @@ Group **multiple independent generation jobs** into one batch. **Mixed skills al
 > **Requires**: load **creative-job-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
 > **Prompt gate**: For every item that hits image/video MCP, load **creative-gpt-image2-prompt** or **creative-seedance2-prompt** and craft `prompt` **before** submit — never raw user text.
 > **Typical size**: **10 items/batch** (hard cap 10; split larger requests).  
-> **Visibility**: all batch items are **async jobs** (including direct image/video) — appear in `creative_list_jobs` / Dashboard; **do not** use sync MCP inside a batch (`creative_generate_*` / `creative_image_to_video`, etc.).
+> **Visibility**: all batch items are **async jobs** — appear in `creative_list_jobs`. Prefer `creative_submit_workflow`; video convenience tools (`creative_image_to_video` etc.) are also async but batch should still use `submit_workflow` + unique `client_request_id`.
 
 ## When to use
 
@@ -27,7 +27,7 @@ Group **multiple independent generation jobs** into one batch. **Mixed skills al
 
 - Single task → use the matching L1/L2 skill directly, no batch wrapper
 - Same prompt, N image variants only → **trend-viral-short** + `creative_submit_batch_variants` (one job)
-- User wants instant result, no job list → **creative-direct** sync MCP (not in batch)
+- User wants a single clip → **creative-direct** (video still async `job_id`; image may be sync)
 - One product image → N scene clips → Jianying remix (with 15s polling) → **product-image-to-jianying-remix**
 
 ---
@@ -121,7 +121,7 @@ Unified call:
 | mode | Required `input` fields |
 |------|-------------------------|
 | `text_to_video` (no refs) | `prompt`, `duration_sec`, `aspect_ratio` |
-| `image_to_video` (reference) | above + `reference_image_urls` or `reference_image_url` |
+| `image_to_video` (reference) | above + `reference_image_urls` or `reference_image_url`; optional `reference_video_urls`, `reference_audio_urls` (lipsync), `generate_audio` |
 | `first_frame` | above + `video_mode: "first_frame"`, `first_frame_url` |
 | `first_last_frame` | above + `video_mode: "first_last_frame"`, `first_frame_url`, `last_frame_url` |
 
@@ -174,7 +174,7 @@ When batch item is `product-url-to-video`:
 - `items.length` **1–10**; if >10 → split batches and tell user
 - Each `label` non-empty; `skill` in mapping table
 - Missing script / prompt / URL → ask user; **do not** submit partial items
-- Confirm no sync MCP (`creative_generate_*`, etc.)
+- Confirm video items use async submit (not expecting in-call artifacts)
 
 ### 2. Estimate credits
 
@@ -298,8 +298,8 @@ User: "Three product URLs as reference renders, plus two keyframe scripts, five 
 ## Notes
 
 - Batch is an **Agent-side orchestration concept** — no unified parent job on server; use `batch_tracker` + `creative_list_jobs`
-- **Direct jobs still appear in job list**: batch must use `creative_submit_workflow`, not sync `creative_generate_video`
-- Single chat, no dashboard → still OK to use **creative-direct** sync MCP outside batch
+- **Direct jobs appear in job list**: batch uses `creative_submit_workflow` (`direct_video` / `direct_image`)
+- Single clip outside batch → **creative-direct** (`creative_image_to_video` etc. also return `job_id`)
 - Same `client_request_id` is idempotent — retries need new UUID
 - L2 presets/constraints (e.g. trend_viral_v1) follow original skills; this skill only schedules
 - For video, confirm user wants **full deliverable**, not image variants only

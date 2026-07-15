@@ -1,6 +1,6 @@
 ---
 name: creative-narrative-router
-description: Route narrative_structure from user intent (product_ad, story_narrative, problem_solution, etc.); load beat references before creative_generate_script. Locale-agnostic — match user language in scripts, not in skill docs.
+description: Use before script2film to pick narrative_structure beats
 metadata:
   layer: L0-foundation
   requires: []

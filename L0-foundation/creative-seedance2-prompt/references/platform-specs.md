@@ -26,9 +26,10 @@
 
 | MCP tool | Prompt field | Ref fields |
 |----------|--------------|------------|
-| `creative_generate_video` | `prompt` | optional refs |
-| `creative_image_to_video` | `prompt` | `reference_image_urls` / `reference_image_url` |
-| `creative_first_frame_to_video` | `prompt` | `first_frame_url`, optional `last_frame_url` |
+| `creative_generate_video` | `prompt` | optional refs — **async** `job_id` |
+| `creative_image_to_video` | `prompt` | `reference_image_urls` / `reference_image_url` — **async** |
+| `creative_first_frame_to_video` | `prompt` | `first_frame_url`, optional `last_frame_url` — **async** |
+| `creative_submit_workflow` (`direct_video`) | `input.prompt` | same fields under `input` — **async** |
 | `creative_submit_workflow` (`direct_video`) | `input.prompt` | per mode table in creative-direct |
 
 ## Audio policy (VidAU script2film)

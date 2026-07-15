@@ -1,6 +1,6 @@
 ---
 name: creative-platform
-description: VidAU Creative reference upload and pre-generation setup
+description: Use to upload refs / check credits before generation
 metadata:
   layer: L0-foundation
   requires: [creative-seedance2-prompt, creative-gpt-image2-prompt]

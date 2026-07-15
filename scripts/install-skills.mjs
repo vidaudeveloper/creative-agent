@@ -19,6 +19,7 @@
  *   node scripts/install-skills.mjs --skip-compiler
  */
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -197,6 +198,16 @@ async function main() {
     console.error(`[skills:install] done with ${failed} failure(s)`);
     process.exit(1);
   }
+
+  // Category blurb for Hermes system-prompt skill index (DESCRIPTION.md)
+  const catDescSrc = join(repoRoot, "DESCRIPTION.md");
+  const catDescDest = join(hermesHome, "skills", category, "DESCRIPTION.md");
+  if (existsSync(catDescSrc)) {
+    await mkdir(dirname(catDescDest), { recursive: true });
+    await cp(catDescSrc, catDescDest);
+    console.info(`[skills:install] ✓ ${category}/DESCRIPTION.md`);
+  }
+
   console.info("[skills:install] all skills installed");
 
   if (!skipCompiler) {

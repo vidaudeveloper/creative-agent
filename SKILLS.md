@@ -32,15 +32,16 @@ pnpm skills:build
 | `creative_get_upload_instructions` | S3 presigned PUT instructions for local reference upload |
 | `creative_upload_reference` | Fallback — upload reference image via MCP → S3 URL |
 | `creative_estimate` | Estimate credits / duration |
-| `creative_generate_image` | Sync image generation |
-| `creative_generate_video` | Async text-to-video (`direct_video` task) |
-| `creative_image_to_video` | Async reference image to video (`direct_video` task) |
-| `creative_first_frame_to_video` | Async first / first-last frame to video (`direct_video` task) |
+| `creative_submit_generate` | Unified async generate: `items[]` (1–10), returns `tasks[]` |
+| `creative_generate_image` | Async image (`direct_image` alias) |
+| `creative_generate_video` | Async text-to-video (`direct_video` alias) |
+| `creative_image_to_video` | Async reference image to video (`direct_video` alias) |
+| `creative_first_frame_to_video` | Async first / first-last frame to video (`direct_video` alias) |
 | `creative_submit_workflow` | Generic async workflow submit |
 | `creative_generate_script` | Generate Final Video Spec Markdown from brief |
 | `creative_submit_script2film` | Script → video (reference mode) |
 | `creative_submit_script2film_keyframes` | Script → video (first/last frame) |
-| `creative_generate_bgm` | Async BGM (`direct_bgm` task) |
+| `creative_generate_bgm` | Async BGM (`direct_bgm` alias) |
 | `creative_get_task` | Get task status |
 | `creative_list_tasks` | List tasks |
 | `creative_cancel_task` | Cancel task |

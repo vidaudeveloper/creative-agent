@@ -56,7 +56,7 @@ items:
   # … up to N
 ```
 
-5. Batch skill handles estimate → parallel `creative_submit_workflow` (`direct_image`) → job-runner tracking → result table
+5. Batch skill submits via `creative_submit_generate` (`type=image`) → task-runner tracking → result table
 6. List artifacts by label; suggest launch priority
 
 ## Preset constraints (trend_viral_v1)

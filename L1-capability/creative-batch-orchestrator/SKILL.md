@@ -14,7 +14,7 @@ Group **multiple independent generation jobs** into one batch. **Same or mixed s
 > **Requires**: load **creative-task-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
 > **Prompt gate**: For every item that hits image/video MCP, load **creative-gpt-image2-prompt** or **creative-seedance2-prompt** and craft `prompt` **before** submit — never raw user text.
 > **Typical size**: **10 items/batch** (hard cap 10; split larger requests).  
-> **Visibility**: all batch items are **async jobs** — appear in `creative_list_tasks`. Prefer `creative_submit_workflow`; video convenience tools (`creative_image_to_video` etc.) are also async but batch should still use `submit_workflow` + unique `client_request_id`.
+> **Visibility**: all batch items are **async tasks** — appear in `creative_list_tasks`. Prefer one `creative_submit_generate` with `items[]`（≤10）for image/video/bgm; video convenience tools are single-item aliases. Each item still needs a unique `client_request_id`.
 
 ## When to use
 
@@ -99,25 +99,32 @@ Each item **must** have a unique `label` (for delivery table). Generate a **`cli
 |---------------|-----------|----------|---------------|
 | `creative-script2film` | creative-script2film | `creative_submit_script2film` | `script2film` |
 | `creative-script2film-keyframes` | creative-script2film-keyframes | `creative_submit_script2film_keyframes` | `script2film` |
-| `creative-direct-video` | creative-direct | `creative_submit_workflow` | `direct_video` |
-| `creative-direct-image` | creative-direct | `creative_submit_workflow` | `direct_image` |
-| `trend-viral-short` | trend-viral-short | expand → N× `creative-direct-image` | `direct_image` |
+| `creative-direct-video` | creative-direct | `creative_submit_generate` `items[].type=video` | `direct_video` |
+| `creative-direct-image` | creative-direct | `creative_submit_generate` `items[].type=image` | `direct_image` |
+| `trend-viral-short` | trend-viral-short | expand → N× `items[].type=image`（一次 ≤10） | `direct_image` |
 | `product-url-to-video` | product-url-to-video | after scrape → any L1 MCP above | per `workflow` |
 
 **All batch items are async jobs** with `task_id`; track via `creative_get_task` / `creative_list_tasks` / `creative_cancel_task`.
 
-### Direct video `mode` → `creative_submit_workflow` input
+### Direct video → `creative_submit_generate` (`items[].type=video`)
 
-Unified call:
+Preferred（可与多条 image 混在同一 `items[]`，合计 ≤10）:
 
 ```json
 {
-  "workflow_type": "direct_video",
-  "input": { "...see table..." },
-  "delivery": { "mode": "both" },
-  "client_request_id": "<uuid>"
+  "items": [
+    {
+      "type": "video",
+      "label": "clip-a",
+      "input": { "...see table..." },
+      "delivery": { "mode": "both" },
+      "client_request_id": "<uuid>"
+    }
+  ]
 }
 ```
+
+Also valid: `creative_submit_workflow` with `workflow_type=direct_video`.
 
 | mode | Required `input` fields |
 |------|-------------------------|
@@ -130,33 +137,53 @@ Example (reference image to video):
 
 ```json
 {
-  "workflow_type": "direct_video",
-  "input": {
-    "prompt": "Product hero, slow rotation, UGC ad style",
-    "duration_sec": 5,
-    "aspect_ratio": "9:16",
-    "reference_image_urls": ["https://example.com/product.jpg"]
-  },
-  "delivery": { "mode": "both" },
-  "client_request_id": "550e8400-e29b-41d4-a716-446655440000"
+  "items": [
+    {
+      "type": "video",
+      "input": {
+        "prompt": "Product hero, slow rotation, UGC ad style",
+        "duration_sec": 5,
+        "aspect_ratio": "9:16",
+        "video_mode": "reference",
+        "reference_image_urls": ["https://example.com/product.jpg"]
+      },
+      "delivery": { "mode": "both" },
+      "client_request_id": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ]
 }
 ```
 
-### Direct image → `creative_submit_workflow`
+### Direct image → `creative_submit_generate`
 
 ```json
 {
-  "workflow_type": "direct_image",
-  "input": {
-    "prompt": "...",
-    "aspect_ratio": "9:16",
-    "reference_urls": ["https://..."]
-  },
-  "delivery": { "mode": "both" },
-  "client_request_id": "<uuid>"
+  "items": [
+    {
+      "type": "image",
+      "label": "variant-a",
+      "input": {
+        "prompt": "...",
+        "aspect_ratio": "9:16",
+        "reference_urls": ["https://..."]
+      },
+      "delivery": { "mode": "both" },
+      "client_request_id": "<uuid>"
+    },
+    {
+      "type": "image",
+      "label": "variant-b",
+      "input": {
+        "prompt": "...different...",
+        "aspect_ratio": "9:16"
+      },
+      "client_request_id": "<uuid>"
+    }
+  ]
 }
 ```
 
+一次最多 **10** 条；返回 `tasks[]`（含 `task_id` / `label`）。Equivalent: `creative_submit_workflow` with `workflow_type=direct_image`，或 alias `creative_generate_image`（仅单条）。
 ### L2 vertical (product-url-to-video)
 
 When batch item is `product-url-to-video`:
@@ -212,7 +239,9 @@ Submit only after user confirms.
 
 ### 3. Parallel submit
 
-- **All items async**: fire all `creative_submit_*` / `creative_submit_workflow` in parallel (unique `client_request_id` each)
+- **Image / video / BGM（≤10）**: 优先一次 `creative_submit_generate` 传全部 `items[]`（每条唯一 `client_request_id`），读返回的 `tasks[].task_id`
+- **script2film 等其它 workflow**: 仍可并行多次 `creative_submit_*` / `creative_submit_workflow`
+- 超过 10 条图/视频/BGM → 拆成多批 `creative_submit_generate`
 - Maintain in-memory **batch_tracker** (complements `creative_list_tasks`):
 
 ```json
@@ -246,11 +275,11 @@ After submit, send summary: `Submitted N async jobs` + each `task_id`; say you w
 ### 4. Tracking (creative-task-runner extension)
 
 1. Send `tracking.user_message` per submit (keep all `task_id`s)
-2. Follow **creative-task-runner**: arm background `sleep(max ETA)` → poll every **20s**; **end foreground turn**
+2. Follow **creative-task-runner** HARD GATE: arm background `sleep(max ETA)` via Hermes `terminal` (`background=true`, `notify_on_complete=true`) → poll every **20s**; **end foreground turn**
 3. User may ask mid-wait; answer once (`creative_list_tasks` / `creative_get_task`); keep the background schedule
 4. On wake when all terminal → deliver batch result table (§5) and continue any skill next step
 
-**Do not** skip arming the background waiter (user-ping-only). **Do not** block the chat turn with in-turn ETA sleep.
+**Do not** skip arming the background waiter (user-ping-only). **Do not** block the chat turn with in-turn ETA sleep. **Do not** only promise to follow up without starting the terminal background job.
 
 ### 5. Delivery
 

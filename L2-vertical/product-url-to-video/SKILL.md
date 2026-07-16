@@ -205,7 +205,7 @@ User wants A/B hook tests → **trend-viral-short** → **creative-batch-orchest
 
 Use **creative-direct**:
 
-- Image: `creative_generate_image` + `reference_urls: [<hero>]`
+- Image: `creative_submit_generate` type=image（或 `creative_generate_image`）+ `reference_urls: [<hero>]` — async `task_id`
 - Reference video: `creative_image_to_video` + `reference_image_urls: [<hero>]`
 - First/last frame: `creative_first_frame_to_video` + `first_frame_url` / `last_frame_url`
 

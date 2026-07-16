@@ -7,10 +7,12 @@ metadata:
   tags: [image, video, async, one-click]
 ---
 
-# Creative Direct — Image sync / Video async
+# Creative Direct — Image / Video / BGM (all async)
 
-- **Image**: sync MCP (`creative_generate_image`) — returns artifacts in one call.
-- **Video**: **always async** — submit returns `task_id`; never wait for the MP4 in the same MCP call (Seedance is too slow → timeouts).
+All generation returns **`task_id`** immediately. Follow **creative-task-runner** (foreground reply + background ETA → 20s poll).
+
+> **Preferred MCP**: `creative_submit_generate` with `items: [{ type, input }, ...]`（1–10 条，一次返回多个 `task_id`）。  
+> Convenience aliases still work: `creative_generate_image` / `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video` / `creative_generate_bgm`.
 
 > **Prompt gate (required)**: Before any MCP call below, load **creative-gpt-image2-prompt** (images) or **creative-seedance2-prompt** (video), output a paste-ready prompt, then pass it as MCP `prompt`. Never use raw user text.
 
@@ -24,45 +26,71 @@ metadata:
 |------|-------|-----|
 | Reference images, product consistency | **creative-script2film** | `creative_submit_script2film` |
 | First/last-frame transitions, controlled camera | **creative-script2film-keyframes** | `creative_submit_script2film_keyframes` |
-| Single short clip | **This skill** | `creative_image_to_video` / `creative_generate_video` / `creative_first_frame_to_video` (all → `direct_video` job) |
-| Multi-shot parallel | **creative-batch-orchestrator** | `creative_submit_workflow` `direct_video` |
+| Single short clip | **This skill** | `creative_submit_generate` `type=video` (or convenience video tools) |
+| Multi-shot parallel | **creative-batch-orchestrator** | 一次 `creative_submit_generate` `items[]`（≤10）或多次 `creative_submit_workflow` |
 
-## Image generation
+## Image generation (async)
 
-1. Tell user: "Generating image, ~1–2 minutes…"
-2. **Load creative-gpt-image2-prompt** — craft production-grade `prompt` from user intent + references
-3. **When user has local/attached reference images** (`@image`, etc.):
-   - **Prefer** `creative_get_upload_instructions` → local curl/terminal PUT to S3 → use `upload.file_url`
-   - Fallback (no local terminal): `creative_upload_reference` (`content_base64`)
-4. `creative_generate_image`:
-   - `prompt`: **output from creative-gpt-image2-prompt** (not raw user text)
-   - `aspect_ratio`: `9:16` | `1:1` | `16:9`
-   - `reference_urls`: optional — `file_url` from upload step (or existing HTTPS URLs)
-5. Read `tracking.user_message` / `delivery_strategy`; save to conversation **产物** + show `artifacts[0].urls.download` (do not default-download to a local path)
+1. **Load creative-gpt-image2-prompt** — craft production-grade `prompt`
+2. Local/attached refs → `creative_get_upload_instructions` (prefer) or `creative_upload_reference`
+3. Submit:
 
-## Video generation (async only)
+```json
+{
+  "items": [
+    {
+      "type": "image",
+      "input": {
+        "prompt": "<from gpt-image2 skill>",
+        "aspect_ratio": "9:16",
+        "reference_urls": ["https://..."]
+      },
+      "client_request_id": "<uuid>"
+    }
+  ]
+}
+```
 
-1. Tell user: "Submitting video job, ~2–5 minutes; I'll continue when it's ready."
-2. **Load creative-seedance2-prompt** — craft production-grade `prompt`
-3. With user reference images → **`creative_image_to_video`**:
-   - `prompt`: Seedance prompt
-   - `reference_image_urls` (max 9) or `reference_image_url`
-   - optional `reference_audio_urls` / `reference_video_urls`
-4. Without refs → `creative_generate_video` (text-to-video)
-5. First/last frame → `creative_first_frame_to_video`
-6. Response is **`task_id` + tracking** — **not** artifacts. Follow **creative-task-runner**: notify + arm background ETA/20s poll → end turn; on wake deliver.
+MCP: `creative_submit_generate`（返回 `tasks[]`；单条时也有顶层 `task_id`）。多图一次最多 10 条 `items`。Alias：`creative_generate_image`（单条 flat fields）。
+4. Follow **creative-task-runner**; on wake save to conversation **产物** + show download URL.
 
-Equivalent: `creative_submit_workflow` with `workflow_type=direct_video` and the same fields under `input`.
+## Video generation (async)
 
-## Optional: BGM
+1. **Load creative-seedance2-prompt**
+2. Prefer `creative_submit_generate`:
 
-For a single short clip with background music (after video task completes):
+| Case | `items[].input` highlights |
+|------|-------------------|
+| Text-to-video | `prompt`, `duration_sec`, `aspect_ratio` |
+| Reference | above + `video_mode: "reference"`, `reference_image_urls` |
+| First frame | `video_mode: "first_frame"`, `first_frame_url` |
+| First/last | `video_mode: "first_last_frame"`, `first_frame_url`, `last_frame_url` |
 
-1. `creative_generate_bgm` — **async** (`direct_bgm`); follow **creative-task-runner** (may pass `script` / `brief` / `bgm_hint` for auto prompt)
-2. On wake: take BGM `artifacts[0].urls.download`
-3. `creative_mux_bgm_into_video` — mux `video_url` + `bgm_url`
+Aliases: `creative_generate_video` / `creative_image_to_video` / `creative_first_frame_to_video`.
+3. Response is **`tasks[]` / `task_id` + tracking** — follow **creative-task-runner**.
+
+## Optional: BGM (async)
+
+After video task completes:
+
+```json
+{
+  "items": [
+    {
+      "type": "bgm",
+      "input": {
+        "prompt": "...",
+        "duration_sec": 30,
+        "instrumental": true
+      }
+    }
+  ]
+}
+```
+
+Or alias `creative_generate_bgm`. On wake → `creative_mux_bgm_into_video` with video + BGM URLs.
 
 ## Defaults
 
-- Vertical short: `aspect_ratio=9:16`, `duration_sec=5`
-- **Audio on**: `generate_audio=true` (default); in-shot SFX from Seedance
+- Vertical short: `aspect_ratio=9:16`, video `duration_sec=5`, BGM `duration_sec=30`
+- **Audio on** for video: `generate_audio=true` (default); in-shot SFX from Seedance

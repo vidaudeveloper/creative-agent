@@ -2,3 +2,6 @@ node_modules/
 public/
 .DS_Store
 tools/jianying-draft-compiler
+docs/tiktok-skills/*
+docs/NEXT-WEEK-CREATIVE-SKILLS-PRD.md
+TIKTOK-AGENTIC-HUB-ANALYSIS.md

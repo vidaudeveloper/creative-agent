@@ -11,7 +11,7 @@ metadata:
 
 Production-grade **GPT Image 2 (`gpt-image-2`)** prompt engineering for VidAU Creative Agent.
 
-> **Mandatory gate**: Load this skill **before** any MCP that generates images (`creative_generate_image`, `creative_submit_workflow` with `direct_image`, or any `prompt` for still/keyframe generation). **Never** pass raw user text directly as `prompt` — run this skill's workflow first.
+> **Mandatory gate**: Load this skill **before** any MCP that generates images (`creative_submit_generate` type=image, `creative_generate_image`, `creative_submit_workflow` with `direct_image`, or any `prompt` for still/keyframe generation). **Never** pass raw user text directly as `prompt` — run this skill's workflow first.
 
 Adapted from [wuyoscar/GPT-Image2-Skill](https://github.com/wuyoscar/GPT-Image2-Skill) (MIT) and [freestylefly/awesome-gpt-image-2](https://github.com/freestylefly/awesome-gpt-image-2) (MIT).
 
@@ -19,7 +19,7 @@ Adapted from [wuyoscar/GPT-Image2-Skill](https://github.com/wuyoscar/GPT-Image2-
 
 | Trigger | Action |
 |---------|--------|
-| `creative_generate_image` | Craft prompt → MCP `prompt` |
+| `creative_submit_generate` type=image / `creative_generate_image` | Craft prompt → `input.prompt` |
 | Batch A/B images (trend-viral / orchestrator) | Craft **one distinct prompt per item** |
 | `direct_image` workflow | Craft prompt → `input.prompt` |
 | Keyframe / product still brief | Output English or Chinese prompt per user locale |

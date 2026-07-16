@@ -96,12 +96,12 @@ Load [script-templates.md](references/script-templates.md) + [multi-scene.md](re
 生成规则（无现成「已手持产品」图时必跑）：
 
 1. Load **creative-gpt-image2-prompt**
-2. `creative_generate_image`：
-   - `reference_urls`: **必须含产品图**；若用户有人物图也一并放入
-   - `aspect_ratio`: `9:16`
-   - `prompt`: 按产品形态写清 **holding**（瓶/盒/机）或 **wearing**（表/饰/衣帽等）；产品外观锁参考图；脸+产品同框；UGC 自拍感  
+2. `creative_submit_generate` `type=image`（或 alias `creative_generate_image`）— **async**，返回 `task_id`，走 **creative-task-runner**：
+   - `input.reference_urls`: **必须含产品图**；若用户有人物图也一并放入
+   - `input.aspect_ratio`: `9:16`
+   - `input.prompt`: 按产品形态写清 **holding**（瓶/盒/机）或 **wearing**（表/饰/衣帽等）；产品外观锁参考图；脸+产品同框；UGC 自拍感  
    - 细则：[handheld-prompt.md](references/handheld-prompt.md) § Confirmation still
-3. 输出 = **handheld still**（手持/穿戴定妆图），供 Hint 展示与后续视频 `reference_image_urls`
+3. 后台完成后输出 = **handheld still**（手持/穿戴定妆图），供 Hint 展示与后续视频 `reference_image_urls`
 
 | User has | Action |
 |----------|--------|

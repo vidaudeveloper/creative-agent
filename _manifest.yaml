@@ -59,15 +59,19 @@ skills:
     layer: L1-capability
     path: L1-capability/creative-direct
     title: Direct Image / Video Generation
-    tags: [image, video, sync, one-click]
+    tags: [image, video, async, one-click]
     requires: [creative-platform, creative-task-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]
     mcp_tools:
+      - creative_submit_generate
       - creative_generate_image
       - creative_generate_video
       - creative_image_to_video
       - creative_first_frame_to_video
       - creative_generate_bgm
       - creative_mux_bgm_into_video
+      - creative_get_task
+      - creative_list_tasks
+      - creative_cancel_task
       - creative_estimate
 
   - id: creative-script2film
@@ -113,6 +117,7 @@ skills:
       ]
     mcp_tools:
       - creative_estimate
+      - creative_submit_generate
       - creative_submit_script2film
       - creative_submit_script2film_keyframes
       - creative_submit_workflow

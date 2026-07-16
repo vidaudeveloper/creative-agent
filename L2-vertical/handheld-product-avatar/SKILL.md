@@ -6,7 +6,7 @@ metadata:
   requires:
     [
       creative-platform,
-      creative-job-runner,
+      creative-task-runner,
       creative-seedance2-prompt,
       creative-gpt-image2-prompt,
       creative-narrative-router,
@@ -32,7 +32,7 @@ Turn **product image + selling points** into a vertical UGC-style ad: person **h
 > **禁止**只出无产品的纯人物定妆图给用户确认 — 效果图必须已含产品。  
 > **Default render path**: **batch direct video** (per-shot Seedance) — **not** `creative_submit_script2film`.  
 > Pipeline: TTS per shot → parallel async `direct_video` → **§8 后台 Wait-then-poll（强制）** → **§9 ffmpeg concat**.  
-> **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**按 **creative-job-runner**：前台通知并结束回合 + **后台** `sleep(ETA)` → 查 job → 未完成再后台 `sleep 20s`，全部终态后**自动**进拼接。  
+> **Wait-then-poll 硬门禁**：视频 job 全部提交后，agent **必须**按 **creative-task-runner**：前台通知并结束回合 + **后台** `sleep(ETA)` → 查 job → 未完成再后台 `sleep 20s`，全部终态后**自动**进拼接。  
 > **禁止**：只回复 job 表却不调度后台 waiter；或把跟进完全推给用户「随时问进度」。  
 > Lip sync = Seedance `reference_audio` **出镜口播对口型**（not 旁白/画外音；prompt 禁止 narration/旁白措辞）.  
 > **Never** upload recognizable real-face refs unless user accepts privacy risk.
@@ -172,12 +172,12 @@ MCP: `creative_submit_workflow` with above, **or** `creative_image_to_video` (al
 
 ### 8. Wait-then-poll（强制主步骤 — 后台对齐 job-runner，唤醒后拼接）
 
-**必做，不是参考可选。** 遵循 **creative-job-runner**（前台回复 + 后台轮询），完成后**必须**进 §9。
+**必做，不是参考可选。** 遵循 **creative-task-runner**（前台回复 + 后台轮询），完成后**必须**进 §9。
 
 全部镜头 job 提交成功后：
 
-1. **前台**：告知用户 jobs 已提交 + `job_id` ↔ shot 表 + **max ETA**（各 submit 的 `estimate.eta_sec`，缺省 **180s**）→ 调度后台 waiter → **结束前台回合**
-2. **后台**：`sleep(max_eta)`（勿在前台阻塞）→ 查询每个 `job_id`
+1. **前台**：告知用户 jobs 已提交 + `task_id` ↔ shot 表 + **max ETA**（各 submit 的 `estimate.eta_sec`，缺省 **180s**）→ 调度后台 waiter → **结束前台回合**
+2. **后台**：`sleep(max_eta)`（勿在前台阻塞）→ 查询每个 `task_id`
 3. 若 **全部** 终态（`completed` / `failed` / `cancelled`）：
    - 有失败 → 报告失败镜；问重试或用成功镜继续
    - 全部 `completed` → **立刻**进 **§9 Client concat**（不等人再 ping）

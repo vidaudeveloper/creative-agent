@@ -8,7 +8,7 @@ Skill package for VidAU Creative Agent, used with the [creative-agent](https://g
 
 | Layer | Purpose | Skills |
 |-------|---------|--------|
-| **L0-foundation** | Shared foundation | `creative-platform`, `creative-job-runner`, `creative-narrative-router`, `creative-seedance2-prompt`, `creative-gpt-image2-prompt` |
+| **L0-foundation** | Shared foundation | `creative-platform`, `creative-task-runner`, `creative-narrative-router`, `creative-seedance2-prompt`, `creative-gpt-image2-prompt` |
 | **L1-capability** | Production workflows | `creative-direct`, `creative-script2film`, `creative-script2film-keyframes`, `creative-batch-orchestrator` |
 | **L2-vertical** | Vertical scenarios | `trend-viral-short`, `product-url-to-video` |
 

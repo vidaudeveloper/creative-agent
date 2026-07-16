@@ -3,7 +3,7 @@ name: trend-viral-short
 description: Use when batch TikTok/Reels hook IMAGE variants to A/B
 metadata:
   layer: L2-vertical
-  requires: [creative-job-runner, creative-platform, creative-gpt-image2-prompt, creative-seedance2-prompt, creative-batch-orchestrator, creative-script2film, creative-script2film-keyframes, creative-direct]
+  requires: [creative-task-runner, creative-platform, creative-gpt-image2-prompt, creative-seedance2-prompt, creative-batch-orchestrator, creative-script2film, creative-script2film-keyframes, creative-direct]
   tags: [trend, batch, ecommerce, image]
 ---
 

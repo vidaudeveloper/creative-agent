@@ -64,32 +64,32 @@ Map each item → `creative_submit_workflow` `workflow_type=direct_video` + uniq
 
 ### B. Convenience tools (same async jobs)
 
-`creative_image_to_video` with the same fields (also async → `job_id`). Still follow **Wait-then-poll** below.
+`creative_image_to_video` with the same fields (also async → `task_id`). Still follow **Wait-then-poll** below.
 
 ## Wait-then-poll（强制主步骤 — 与 SKILL.md §8 同级）
 
 **Required after every video submit on this skill. Not optional. Not “reference only.”**
 
-Follows **creative-job-runner** (foreground reply + background ETA → poll 20s); on wake **must** continue to concat.
+Follows **creative-task-runner** (foreground reply + background ETA → poll 20s); on wake **must** continue to concat.
 
 ```text
 submit all shot jobs (parallel)
-  → notify user (job_ids + ETA) + arm background waiter  → end foreground turn
+  → notify user (task_ids + ETA) + arm background waiter  → end foreground turn
   → [background] sleep once for max(estimate.eta_sec)  // fallback 180s
-  → [background wake] query all job_ids
+  → [background wake] query all task_ids
   → if all terminal → concat (or report failures)
   → else re-arm background sleep 20s → query again → loop until all terminal
 ```
 
 | Step | Action |
 |------|--------|
-| 1 | Collect each submit’s `job_id` + `estimate.eta_sec` |
+| 1 | Collect each submit’s `task_id` + `estimate.eta_sec` |
 | 2 | `wait_sec = max(etas)` or **180** if none |
 | 3 | Arm **background** sleep for `wait_sec` — end foreground turn (do **not** block chat) |
-| 4 | On wake: `creative_get_job` each id (or one `creative_list_jobs` + filter) |
+| 4 | On wake: `creative_get_task` each id (or one `creative_list_tasks` + filter) |
 | 5 | All `completed` → download + ffmpeg concat (§ below) **immediately** |
 | 6 | Any non-terminal → re-arm background sleep **20s**, goto 4 |
-| 7 | Timeout ~**30 min** total after first poll → stop, list unfinished `job_id`s |
+| 7 | Timeout ~**30 min** total after first poll → stop, list unfinished `task_id`s |
 
 **Forbidden**
 
@@ -102,7 +102,7 @@ User may still ask for status mid-wait; answer with one query round; **keep** th
 
 ## Tracking table
 
-- Keep `job_id` ↔ shot `index` until concat finishes
+- Keep `task_id` ↔ shot `index` until concat finishes
 - Progress tip: `completed_count / total` every 1–2 poll rounds
 
 ## Concat (required for ≥2 shots)

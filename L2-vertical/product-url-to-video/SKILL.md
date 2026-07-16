@@ -3,7 +3,7 @@ name: product-url-to-video
 description: Use when user pastes product page URL to make ad video
 metadata:
   layer: L2-vertical
-  requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-script2film, creative-script2film-keyframes]
+  requires: [creative-task-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-script2film, creative-script2film-keyframes]
   tags: [ecommerce, product, url, scrape, script2film, bgm, one-click]
 ---
 
@@ -43,7 +43,7 @@ Message contains `https://` and looks like a product page (`product`, `/p/`, `/d
 1. Scrape product info (Agent local tools)
 2. Show summary to user and confirm
 3. Estimate credits + submit generation (MCP)
-4. creative-job-runner — notify + background ETA/20s poll → end turn → on wake deliver
+4. creative-task-runner — notify + background ETA/20s poll → end turn → on wake deliver
 ```
 
 ---
@@ -213,7 +213,7 @@ Use **creative-direct**:
 
 ## 5. Job tracking
 
-Load **creative-job-runner** immediately after submit:
+Load **creative-task-runner** immediately after submit:
 
 - Send `tracking.user_message`; arm background ETA → 20s poll; **end foreground turn**
 - On background wake with `completed` → save to conversation **产物** + deliver URL (**script2film includes BGM by default**; no default local-path download)

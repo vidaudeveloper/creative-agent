@@ -140,7 +140,7 @@ Download `artifacts[0].urls.download` (BGM mixed master).
 
 ### Progress reporting (required — no silent hang)
 
-Client post-process is **not** tracked by `creative_get_job`. When the user asks status (`怎么样了`, `进度`, `how's it going`, `status?`, etc.) — even mid-turn or while a shell command runs — you **must reply in chat first** with:
+Client post-process is **not** tracked by `creative_get_task`. When the user asks status (`怎么样了`, `进度`, `how's it going`, `status?`, etc.) — even mid-turn or while a shell command runs — you **must reply in chat first** with:
 
 1. **Current step** (one of): `preflight` / `downloading master` / `muxing VO` / `building SRT` / `burning subtitles` / `delivering` / `blocked: <reason>`
 2. **Done** vs **remaining** (e.g. "口播已混完，卡在字幕：ffmpeg 缺少 subtitles 滤镜")

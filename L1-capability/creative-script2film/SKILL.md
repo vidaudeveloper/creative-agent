@@ -3,7 +3,7 @@ name: creative-script2film
 description: Use when 16–120s multi-shot; NOT ≤15s or 人物口播
 metadata:
   layer: L1-capability
-  requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt]
+  requires: [creative-task-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt]
   tags: [storyboard, async, script2film, reference, bgm, one-click, long-video, script]
 ---
 
@@ -134,7 +134,7 @@ On confirm, check that **`narrative_structure`** matches intent; if not, adjust 
    ```
    Use `"voiceover_mode": "mux"` and omit `audio_url` when lip sync is not needed.
    Omit `voiceover_*` / `subtitles_enabled` when user does not want narration.
-3. Hand the returned `job_id` to **creative-job-runner** — send `tracking.user_message` **immediately**, arm **background** ETA → 20s poll, **end the foreground turn** (do not block chat with in-turn sleep; do not rely on user ping alone).
+3. Hand the returned `task_id` to **creative-task-runner** — send `tracking.user_message` **immediately**, arm **background** ETA → 20s poll, **end the foreground turn** (do not block chat with in-turn sleep; do not rely on user ping alone).
 4. On background wake with `completed`, **artifacts[0]** is the server master (**BGM mixed in**). Default: save master to conversation **产物** + show URL. Continue client post-process below only when VO mux / subtitles need a temp local file.
    - **`mux`**: run client VO mux + optional subtitles
    - **`lipsync`**: VO already in video; optional subtitles only
@@ -185,7 +185,7 @@ script2film generates BGM **after** pre-BGM timeline concat completes (same as v
 
 Manual steps (optional):
 
-- `creative_generate_bgm` — generate BGM alone for preview
+- `creative_generate_bgm` — async BGM preview (`direct_bgm` → `task_id`; follow **creative-task-runner**)
 - `creative_mux_bgm_into_video` — mux BGM into a given video URL
 
 Requires `RUNWARE_API_KEY`; if unset, BGM is skipped and the pre-BGM timeline (with diegetic SFX if present) is still delivered.

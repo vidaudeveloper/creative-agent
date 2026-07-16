@@ -3,7 +3,7 @@ name: creative-script2film-keyframes
 description: Use when multi-shot needs first/last-frame transitions
 metadata:
   layer: L1-capability
-  requires: [creative-job-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt, creative-script2film]
+  requires: [creative-task-runner, creative-platform, creative-narrative-router, creative-seedance2-prompt, creative-script2film]
   tags: [storyboard, async, script2film, keyframes, first-frame, one-click]
 ---
 
@@ -40,7 +40,7 @@ Same server pipeline as **creative-script2film** — **only `video_mode` differs
 }
 ```
 
-3. **creative-job-runner** — send `tracking.user_message` immediately after submit; arm background ETA → 20s poll; end turn; on wake **artifacts[0]** is final video (with BGM unless `skip_bgm: true`)
+3. **creative-task-runner** — send `tracking.user_message` immediately after submit; arm background ETA → 20s poll; end turn; on wake **artifacts[0]** is final video (with BGM unless `skip_bgm: true`)
 
 ### Server execution order (same as reference version)
 

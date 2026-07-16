@@ -3,7 +3,7 @@ name: creative-batch-orchestrator
 description: Use when ≥2 parallel creative async jobs, same/mixed skills
 metadata:
   layer: L1-capability
-  requires: [creative-job-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]
+  requires: [creative-task-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]
   tags: [batch, orchestrator, multi-skill, video, async]
 ---
 
@@ -11,10 +11,10 @@ metadata:
 
 Group **multiple independent generation jobs** into one batch. **Same or mixed skills** (script2film, keyframes, direct video, direct image, etc.) — parallel submit, unified tracking and delivery.
 
-> **Requires**: load **creative-job-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
+> **Requires**: load **creative-task-runner** (multi-job UI tracking) and **creative-platform** (upload + preflight) first.  
 > **Prompt gate**: For every item that hits image/video MCP, load **creative-gpt-image2-prompt** or **creative-seedance2-prompt** and craft `prompt` **before** submit — never raw user text.
 > **Typical size**: **10 items/batch** (hard cap 10; split larger requests).  
-> **Visibility**: all batch items are **async jobs** — appear in `creative_list_jobs`. Prefer `creative_submit_workflow`; video convenience tools (`creative_image_to_video` etc.) are also async but batch should still use `submit_workflow` + unique `client_request_id`.
+> **Visibility**: all batch items are **async jobs** — appear in `creative_list_tasks`. Prefer `creative_submit_workflow`; video convenience tools (`creative_image_to_video` etc.) are also async but batch should still use `submit_workflow` + unique `client_request_id`.
 
 ## When to use
 
@@ -28,7 +28,7 @@ Group **multiple independent generation jobs** into one batch. **Same or mixed s
 ## When not to use
 
 - Single task → use the matching L1/L2 skill directly, no batch wrapper
-- User wants a single clip → **creative-direct** (video still async `job_id`; image may be sync)
+- User wants a single clip → **creative-direct** (video still async `task_id`; image may be sync)
 
 ---
 
@@ -104,7 +104,7 @@ Each item **must** have a unique `label` (for delivery table). Generate a **`cli
 | `trend-viral-short` | trend-viral-short | expand → N× `creative-direct-image` | `direct_image` |
 | `product-url-to-video` | product-url-to-video | after scrape → any L1 MCP above | per `workflow` |
 
-**All batch items are async jobs** with `job_id`; track via `creative_get_job` / `creative_list_jobs` / `creative_cancel_job`.
+**All batch items are async jobs** with `task_id`; track via `creative_get_task` / `creative_list_tasks` / `creative_cancel_task`.
 
 ### Direct video `mode` → `creative_submit_workflow` input
 
@@ -213,7 +213,7 @@ Submit only after user confirms.
 ### 3. Parallel submit
 
 - **All items async**: fire all `creative_submit_*` / `creative_submit_workflow` in parallel (unique `client_request_id` each)
-- Maintain in-memory **batch_tracker** (complements `creative_list_jobs`):
+- Maintain in-memory **batch_tracker** (complements `creative_list_tasks`):
 
 ```json
 {
@@ -225,7 +225,7 @@ Submit only after user confirms.
       "skill": "creative-script2film",
       "workflow_type": "script2film",
       "client_request_id": "uuid-1",
-      "job_id": "uuid-job-1",
+      "task_id": "uuid-job-1",
       "status": "running"
     },
     {
@@ -234,20 +234,20 @@ Submit only after user confirms.
       "skill": "creative-direct-video",
       "workflow_type": "direct_video",
       "client_request_id": "uuid-2",
-      "job_id": "uuid-job-2",
+      "task_id": "uuid-job-2",
       "status": "queued"
     }
   ]
 }
 ```
 
-After submit, send summary: `Submitted N async jobs` + each `job_id`; say you will continue when the batch is ready.
+After submit, send summary: `Submitted N async jobs` + each `task_id`; say you will continue when the batch is ready.
 
-### 4. Tracking (creative-job-runner extension)
+### 4. Tracking (creative-task-runner extension)
 
-1. Send `tracking.user_message` per submit (keep all `job_id`s)
-2. Follow **creative-job-runner**: arm background `sleep(max ETA)` → poll every **20s**; **end foreground turn**
-3. User may ask mid-wait; answer once (`creative_list_jobs` / `creative_get_job`); keep the background schedule
+1. Send `tracking.user_message` per submit (keep all `task_id`s)
+2. Follow **creative-task-runner**: arm background `sleep(max ETA)` → poll every **20s**; **end foreground turn**
+3. User may ask mid-wait; answer once (`creative_list_tasks` / `creative_get_task`); keep the background schedule
 4. On wake when all terminal → deliver batch result table (§5) and continue any skill next step
 
 **Do not** skip arming the background waiter (user-ping-only). **Do not** block the chat turn with in-turn ETA sleep.
@@ -257,7 +257,7 @@ After submit, send summary: `Submitted N async jobs` + each `job_id`; say you wi
 When all terminal, output **batch result table**:
 
 ```
-| # | label | skill | job_id | status | artifact |
+| # | label | skill | task_id | status | artifact |
 |---|-------|-------|--------|--------|----------|
 | 1 | SKU-A | script2film | uuid-1 | ✅ | https://... |
 | 2 | Trend direct | direct_video | uuid-2 | ✅ | https://... |
@@ -274,8 +274,8 @@ When all terminal, output **batch result table**:
 
 | Action | Behavior |
 |--------|----------|
-| User: "cancel whole batch" | `creative_cancel_job` for each `queued`/`running` in batch_tracker |
-| User: "cancel item 3" | cancel that `job_id` only |
+| User: "cancel whole batch" | `creative_cancel_task` for each `queued`/`running` in batch_tracker |
+| User: "cancel item 3" | cancel that `task_id` only |
 | Single item retry | **new UUID** as `client_request_id` — never reuse failed id |
 | Retry all failed | re-submit failed items only; keep successes |
 
@@ -299,7 +299,7 @@ User: "Three product URLs as reference renders, plus two keyframe scripts, five 
 2. Scrape 3 URLs → 3 scripts + references
 3. Estimate summary → user confirm
 4. **Parallel submit 10 async jobs** (5× `direct_video` via `creative_submit_workflow`)
-5. Tell user to query progress in chat; on follow-up or all terminal → 10-row result table with job_ids
+5. Tell user to query progress in chat; on follow-up or all terminal → 10-row result table with task_ids
 
 ---
 
@@ -316,9 +316,9 @@ User: "Same SKU, five TikTok hook stills for A/B."
 
 ## Notes
 
-- Batch is an **Agent-side orchestration concept** — no unified parent job on server; use `batch_tracker` + `creative_list_jobs`
+- Batch is an **Agent-side orchestration concept** — no unified parent job on server; use `batch_tracker` + `creative_list_tasks`
 - **Direct jobs appear in job list**: batch uses `creative_submit_workflow` (`direct_video` / `direct_image`)
-- Single clip outside batch → **creative-direct** (`creative_image_to_video` etc. also return `job_id`)
+- Single clip outside batch → **creative-direct** (`creative_image_to_video` etc. also return `task_id`)
 - Same `client_request_id` is idempotent — retries need new UUID
 - L2 presets/constraints (e.g. trend_viral_v1) follow original skills; this skill only schedules
 - For video, confirm user wants **full deliverable**, not image variants only

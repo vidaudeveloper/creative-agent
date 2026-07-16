@@ -152,7 +152,7 @@ L2-vertical/handheld-product-avatar/
   requires:
     [
       creative-platform,
-      creative-job-runner,
+      creative-task-runner,
       creative-seedance2-prompt,
       creative-gpt-image2-prompt,
       creative-narrative-router,

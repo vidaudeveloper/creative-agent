@@ -3,20 +3,20 @@ name: creative-direct
 description: Use when ≤15s clip/image; NOT multi-shot or product URL
 metadata:
   layer: L1-capability
-  requires: [creative-platform, creative-job-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]
+  requires: [creative-platform, creative-task-runner, creative-seedance2-prompt, creative-gpt-image2-prompt]
   tags: [image, video, async, one-click]
 ---
 
 # Creative Direct — Image sync / Video async
 
 - **Image**: sync MCP (`creative_generate_image`) — returns artifacts in one call.
-- **Video**: **always async** — submit returns `job_id`; never wait for the MP4 in the same MCP call (Seedance is too slow → timeouts).
+- **Video**: **always async** — submit returns `task_id`; never wait for the MP4 in the same MCP call (Seedance is too slow → timeouts).
 
 > **Prompt gate (required)**: Before any MCP call below, load **creative-gpt-image2-prompt** (images) or **creative-seedance2-prompt** (video), output a paste-ready prompt, then pass it as MCP `prompt`. Never use raw user text.
 
 > **Duration routing**: User wants **>15s** / 30s / 60s / multi-shot / storyboard → use **creative-script2film** or **handheld-product-avatar** batch; **do not** force long-form through this skill.
 
-> **Job tracking**: Load **creative-job-runner** before any generation call.
+> **Task tracking**: Load **creative-task-runner** before any generation call.
 
 ## Video skill selection
 
@@ -50,16 +50,17 @@ metadata:
    - optional `reference_audio_urls` / `reference_video_urls`
 4. Without refs → `creative_generate_video` (text-to-video)
 5. First/last frame → `creative_first_frame_to_video`
-6. Response is **`job_id` + tracking** — **not** artifacts. Follow **creative-job-runner**: notify + arm background ETA/20s poll → end turn; on wake deliver.
+6. Response is **`task_id` + tracking** — **not** artifacts. Follow **creative-task-runner**: notify + arm background ETA/20s poll → end turn; on wake deliver.
 
 Equivalent: `creative_submit_workflow` with `workflow_type=direct_video` and the same fields under `input`.
 
 ## Optional: BGM
 
-For a single short clip with background music (after video job completes):
+For a single short clip with background music (after video task completes):
 
-1. `creative_generate_bgm` (may pass `script` / `brief` / `bgm_hint` for auto prompt)
-2. `creative_mux_bgm_into_video` — mux `video_url` + `bgm_url`
+1. `creative_generate_bgm` — **async** (`direct_bgm`); follow **creative-task-runner** (may pass `script` / `brief` / `bgm_hint` for auto prompt)
+2. On wake: take BGM `artifacts[0].urls.download`
+3. `creative_mux_bgm_into_video` — mux `video_url` + `bgm_url`
 
 ## Defaults
 

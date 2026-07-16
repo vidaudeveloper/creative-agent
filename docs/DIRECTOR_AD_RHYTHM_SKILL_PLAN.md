@@ -218,7 +218,7 @@ description: Use when ad hooks/beat sheet/CTA timing needed
     layer: L2-vertical
     path: L2-vertical/style-ugc-hook
     title: UGC Hook Short
-    requires: [creative-ad-rhythm, creative-seedance2-prompt, creative-direct, creative-job-runner]
+    requires: [creative-ad-rhythm, creative-seedance2-prompt, creative-direct, creative-task-runner]
 
   - id: style-luxury-product
     layer: L2-vertical

@@ -23,7 +23,8 @@ async function walk(dir) {
         e.name === "scripts" ||
         e.name === "tools" ||
         e.name === ".venv" ||
-        e.name === "vendor"
+        e.name === "vendor" ||
+        e.name === "docs" // reference copies (e.g. tiktok-skills), not installed skills
       ) {
         continue;
       }

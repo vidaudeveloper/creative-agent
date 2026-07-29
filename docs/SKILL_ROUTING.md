@@ -43,10 +43,20 @@ Use when <触发信号>; NOT <易混替代>
 ```yaml
 description: Use when user pastes product page URL to make ad video
 description: Use when ≤15s clip/image; NOT multi-shot or product URL
-description: Use when batch TikTok/Reels hook IMAGE variants to A/B
+description: Use when trend hooks or batch TikTok IMAGE A/B; NOT URL film
+description: Use when borrow viral ad structure; NOT copy brand/pack
 description: Use when 人物口播/handheld product VO; NOT still-life
 description: Use when 16–120s multi-shot; NOT ≤15s or 人物口播
 ```
+
+## L2 互斥速查（本周）
+
+| 用户说法 | 应命中 |
+|----------|--------|
+| 贴商品链接做广告 / Paste&Go | `product-url-to-video` |
+| 借爆款结构 / 参考这个广告做我们的产品 | `viral-ad-rewrite` |
+| 跟趋势 / 素材疲了换方向 / 批量钩子图 | `trend-viral-short` |
+| 只要 ≥2 并行任务编排 | `creative-batch-orchestrator` |
 
 ## 新增「导演/广告节奏」时的结构建议
 
@@ -70,6 +80,22 @@ description: Use when 16–120s multi-shot; NOT ≤15s or 人物口播
 ```bash
 # 描述长度
 node scripts/validate-skills.mjs
+# 或
+pnpm skills:validate && pnpm skills:build
 ```
 
-或在 Hermes：`hermes chat -q "用这个商品链接做带货短视频"`，确认先 `skill_view(product-url-to-video)`。
+Hermes 对话抽检（PRD Demo）：
+
+| # | 用户说法（示例） | 期望先 `skill_view` | 验收要点 |
+|---|------------------|---------------------|----------|
+| 1 | 「用这个商品链接做 TT 广告」+ Shopify/Amazon URL | `product-url-to-video` | 门禁→确认摘要（卖点+3钩子）→成片+素材包 |
+| 2 | 「参考这个广告结构，用我们产品图复刻」 | `viral-ad-rewrite` | 彩排可零成本；未确认 brief 不提交；借/禁借各≥3 |
+| 3 | 「跟趋势做点素材，美妆，美国」 | `trend-viral-short` | 处境+2–3方向→批量钩子图；要视频不误走出图 |
+| 4 | 「写个美妆短视频脚本」 | `creative-narrative-router`（经 script2film/URL） | Hook/Body/CTA + 美妆钩子/卖点框架 |
+| 5 | 「同一 SKU 出 5 张钩子图并告诉我先测哪个」 | `trend-viral-short` → batch | 评分卡分组 +「非投放效果」声明 |
+
+或：`hermes chat -q "用这个商品链接做带货短视频"`，确认先 `skill_view(product-url-to-video)`。
+
+## 本周明确不做（勿误路由）
+
+- `creative-policy-lint`、真实投放 scorecard、Catalog/CSV 批量、素材库同步、投放暂停/预算

@@ -4,12 +4,16 @@ description: Use before script2film to pick narrative_structure beats
 metadata:
   layer: L0-foundation
   requires: []
-  tags: [foundation, narrative, script, routing, storyboard, i18n]
+  tags: [foundation, narrative, script, routing, storyboard, i18n, playbook, ecommerce]
+  hermes:
+    related_skills: [product-url-to-video, creative-script2film, viral-ad-rewrite]
 ---
 
 # Creative Narrative Router
 
 Before **`creative_generate_script`**, pick a **`narrative_structure`**, **Read** the matching file under `references/`, then inject beats, constraints, and scene rhythm into `brief.narrative`.
+
+For **ecommerce / product ads**, also resolve a commerce **industry playbook** (美妆 / 服饰 / 食品) and inject hook menu + sell-point order + CTA — see `references/commerce-playbook-index.md`.
 
 Do **not** use one universal HOOK→CLIMAX template for every video. Structure follows user intent; details live in references (loaded on demand).
 
@@ -31,7 +35,7 @@ Do **not** use one universal HOOK→CLIMAX template for every video. Structure f
 | `creative-direct` — single clip ≤15s | Optional |
 | User pasted full Final Video Spec | Skip router → submit |
 
-## Flow (3 steps)
+## Flow (4 steps)
 
 ### Step 1 — Parse intent
 
@@ -45,6 +49,9 @@ From user message + `brief`:
 | `target_duration_sec` | 16–120, default 30 |
 | `voiceover` | default `false` |
 | `user_explicit_structure` | user named a type (“brand film”, “story-led”, “pain-point ad”) |
+| `industry` | `beauty_skincare` / `fashion_accessories` / `food_beverage` / `unknown` |
+
+Resolve `industry` per **`references/commerce-playbook-index.md`**. Low confidence → ask or offer 2 structure options; **never invent** niche industry jargon.
 
 ### Step 2 — Choose `narrative_structure`
 
@@ -75,26 +82,38 @@ From user message + `brief`:
 Commerce often uses **`product_ad` + `problem_solution`**: pain hook → product reveal.  
 Set primary `product_ad`, `secondary_structure: problem_solution`, Read **both** references.
 
-### Step 3 — Load reference → call MCP
+### Step 3 — Load structure + commerce playbook
 
 1. **Read** the reference file for the chosen structure (paths relative to this `SKILL.md`)
-2. Summarize **beats**, **forbidden**, **scene_types_hint** into `brief.narrative`
-3. Call **`creative_generate_script`**
+2. If ecommerce / `has_concrete_product` / `product-url-to-video`:
+   - **Read** `references/commerce-playbook-index.md`
+   - If industry known → **Read** matching `references/playbooks/*.md`
+   - Default commerce shape: **Hook → Pitch → CTA** (maps onto `product_ad` beats)
+3. Merge structure beats + playbook hook/sellpoint/CTA into `brief.narrative`
+
+### Step 4 — Call MCP
+
+Call **`creative_generate_script`** with enriched brief:
 
 ```json
 {
-  "creative_request": "30s vertical TikTok ad for wireless earbuds — highlight ANC and 30h battery",
+  "creative_request": "30s vertical TikTok ad for vitamin C serum — glow texture focus",
   "brief": {
-    "product": "Wireless earbuds",
-    "audience": "US commuters",
+    "product": "Vitamin C serum",
+    "audience": "US office workers with dull skin",
     "platform": "TikTok",
     "locale": "en",
+    "industry": "beauty_skincare",
     "narrative_structure": "product_ad",
     "secondary_structure": "problem_solution",
     "narrative": {
-      "beats": ["pain_hook", "hero_product", "feature_demo", "cta"],
-      "constraints": ["No invented SKUs", "No fake stats"],
-      "scene_types_hint": ["hero_product", "feature_closeup", "lifestyle", "cta_card"]
+      "beats": ["hook", "hero_product", "pitch", "cta"],
+      "hook_type": "texture_asmr",
+      "sellpoint_order": ["scenario", "benefit", "feature", "experience"],
+      "cta_style": "soft_routine",
+      "video_form": "product_demo",
+      "constraints": ["No invented clinical claims", "No invented SKUs"],
+      "scene_types_hint": ["texture_closeup", "hero_product", "routine_lifestyle", "cta_card"]
     }
   },
   "target_duration_sec": 30,
@@ -103,7 +122,7 @@ Set primary `product_ad`, `secondary_structure: problem_solution`, Read **both**
 }
 ```
 
-**Agent:** **Narrative Driver** in the spec must follow the beat map; each shot in **Scene overview** should map to a beat (label beats in parentheses when helpful).
+**Agent:** **Narrative Driver** in the spec must follow the beat map; each shot in **Scene overview** should map to a beat (label beats in parentheses when helpful). For beauty/fashion/food, script must show **industry hook type + sell-point order**, not a generic “introduce the product” line.
 
 ## Multi-option pitch (low confidence)
 
@@ -142,4 +161,5 @@ If the user gave **no** product name and **no** product reference images:
 ## Downstream skills
 
 - **creative-script2film** / **creative-script2film-keyframes** — require this skill before script generation
-- **product-url-to-video** — usually `product_ad` (+ optional `problem_solution`)
+- **product-url-to-video** — usually `product_ad` (+ optional `problem_solution`) + commerce playbook
+- **viral-ad-rewrite** — may reuse playbook for pitch/CTA after structure brief is confirmed

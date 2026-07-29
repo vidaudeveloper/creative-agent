@@ -1,7 +1,7 @@
 ---
 description: >-
   VidAU Creative — product ads, 人物口播, Seedance/即梦, script2film.
-  Prefer L2 (URL / handheld-product-avatar / trend) over raw L1 when intent is clear.
+  Prefer L2 (URL / viral-rewrite / handheld / trend) over raw L1 when intent is clear.
 ---
 
 # vidau-creative

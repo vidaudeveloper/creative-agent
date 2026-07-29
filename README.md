@@ -10,7 +10,7 @@ Skill package for VidAU Creative Agent, used with the [creative-agent](https://g
 |-------|---------|--------|
 | **L0-foundation** | Shared foundation | `creative-platform`, `creative-task-runner`, `creative-narrative-router`, `creative-seedance2-prompt`, `creative-gpt-image2-prompt` |
 | **L1-capability** | Production workflows | `creative-direct`, `creative-script2film`, `creative-script2film-keyframes`, `creative-batch-orchestrator` |
-| **L2-vertical** | Vertical scenarios | `trend-viral-short`, `product-url-to-video` |
+| **L2-vertical** | Vertical scenarios | `trend-viral-short`, `product-url-to-video`, `viral-ad-rewrite`, `handheld-product-avatar` |
 
 See [`_manifest.yaml`](./_manifest.yaml) for dependencies.
 

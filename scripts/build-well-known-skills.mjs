@@ -9,7 +9,16 @@ const skillsRoot = root;
 const outRoot = join(root, "public", ".well-known", "skills");
 
 const SKILL_NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
-const SKIP_DIRS = new Set(["node_modules", "public", "scripts", ".git"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "public",
+  "scripts",
+  ".git",
+  "docs",
+  "tools",
+  ".venv",
+  "vendor",
+]);
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);

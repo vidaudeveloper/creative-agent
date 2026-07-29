@@ -4,7 +4,9 @@ description: Use when ≥2 parallel creative async jobs, same/mixed skills
 metadata:
   layer: L1-capability
   requires: [creative-task-runner, creative-platform, creative-seedance2-prompt, creative-gpt-image2-prompt, creative-direct, creative-script2film, creative-script2film-keyframes]
-  tags: [batch, orchestrator, multi-skill, video, async]
+  tags: [batch, orchestrator, multi-skill, video, async, scorecard]
+  hermes:
+    related_skills: [trend-viral-short, product-url-to-video]
 ---
 
 # Creative Batch Orchestrator
@@ -197,9 +199,18 @@ When batch item is `product-url-to-video`:
 
 When user intent is trend hook A/B images:
 
-1. Follow **trend-viral-short** to craft **N distinct prompts**
+1. Follow **trend-viral-short** (including trend-advice front step) to craft **N distinct prompts**
 2. Expand into N `creative-direct-image` items (do not keep a single `count` field)
 3. Submit and track like any other image batch
+4. On complete with N≥5 successes → **heuristic scorecard** (§6)
+
+### L2 vertical (product-url-to-video batch hooks)
+
+When URL flow chooses batch hook images:
+
+1. Complete scrape + confirm per **product-url-to-video**
+2. Expand hooks into N `creative-direct-image` items
+3. On complete with N≥5 → **heuristic scorecard** (§6); single video path uses URL skill asset pack instead
 
 ---
 
@@ -297,6 +308,22 @@ When all terminal, output **batch result table**:
 - Failure: `error` + whether to retry single item (new `client_request_id`)
 - Stats: M succeeded / N total, total credits consumed
 
+### 6. Heuristic scorecard (required when ≥5 successful variants)
+
+After the result table, if **≥5** items succeeded (especially hook image / trend / URL multi-hook batches from **trend-viral-short** or **product-url-to-video**):
+
+1. **Read** `references/heuristic-scorecard.md`
+2. Append the scorecard block in the user’s language
+3. Group: **优先测 (Top N)** / **观察中档** / **建议重做或延后**
+4. Disclaimer every time: **创意启发分，非投放效果** — never claim ROAS/CPA/A–F from ads data
+
+If user asks to “把差的停掉 / pause losers”:
+
+- Explain this skill is **read-only advice**
+- Point them to TikTok/ads tooling on the media-buying side — **do not** pretend to pause ads
+
+For 2–4 successes, scorecard is optional but recommended when variants are A/B hooks.
+
 ---
 
 ## Cancel & retry
@@ -336,10 +363,11 @@ User: "Three product URLs as reference renders, plus two keyframe scripts, five 
 
 User: "Same SKU, five TikTok hook stills for A/B."
 
-1. Load **trend-viral-short** → craft **5 different prompts**
+1. Load **trend-viral-short** (trend advice → user picks direction) → craft **5 different prompts**
 2. Build 5× `creative-direct-image` items (shared `reference_urls`, distinct `prompt` + `label`)
 3. Estimate → confirm → parallel submit 5 `direct_image` jobs
 4. Deliver 5-row result table
+5. **Heuristic scorecard** — 优先测 / 观察中档 / 建议延后 + “创意启发分，非投放效果”
 
 ---
 
